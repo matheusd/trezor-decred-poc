@@ -13,3 +13,5 @@ This repo is published mostly for the benefit of Decred Stakeholders, so that
 they can keep an eye on the work being done towards adding trezor support during
 these earlier stages, while full Decrediton integration is still some distance
 away.
+
+Relevent Decrediton issue: https://github.com/decred/decrediton/issues/1491
