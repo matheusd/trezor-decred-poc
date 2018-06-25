@@ -2,7 +2,8 @@ import { InitService, WalletCredentials } from "./helpers/services";
 import * as services from "./dcrwallet-api/api_grpc_pb";
 import * as wallet from "./helpers/wallet";
 import * as networks from "./helpers/networks";
-import { rawToHex, rawHashToHex } from "./helpers/bytes";
+import { rawToHex, rawHashToHex, reverseHash } from "./helpers/bytes";
+import { sprintf } from "sprintf-js";
 
 var log = console.log;
 
@@ -17,14 +18,13 @@ const hardeningConstant = 0x80000000;
 const cointype = 0; // 0 = bitcoin, 42 = decred
 const walletCredentials = WalletCredentials("127.0.0.1", 19121,
     "/home/user/.config/decrediton/wallets/testnet/trezor/rpc.cert");
-    // "/home/user/.config/decrediton/wallets/testnet/default-wallet/rpc.cert");
 
-function addressPath(index) {
+function addressPath(index, branch) {
     return [
         (44 | hardeningConstant) >>> 0, // purpose
         (cointype | hardeningConstant) >>> 0, // coin type
         (0 | hardeningConstant) >>> 0, // account
-        0, // branch
+        (branch || 0) >>> 0, // branch
         index >>> 0  // index
     ]
 }
@@ -56,7 +56,7 @@ function main(device) {
 }
 
 async function testGetAddress(session) {
-    const addr = await session.getAddress(addressPath(0), coin, false);
+    const addr = await session.getAddress(addressPath(14), coin, false);
     log("got addr", addr);
 }
 
@@ -106,7 +106,8 @@ async function testSignTransaction(session) {
     const inputTxs = await wallet.getInputTransactions(wsvc, decodeSvc, decodedUnsigTx);
     log("got input txs");
 
-    const txInfo = walletTxToBtcjsTx(decodedUnsigTx, rawUnsigTxResp.res.getChangeIndex());
+    const txInfo = await walletTxToBtcjsTx(decodedUnsigTx,
+        rawUnsigTxResp.res.getChangeIndex(), inputTxs, wsvc);
     const refTxs = inputTxs.map(walletTxToRefTx);
     const signedResp = await session.signTx(txInfo.inputs, txInfo.outputs, refTxs, coin, 0);
     const signedRaw = signedResp.message.serialized.serialized_tx;
@@ -116,19 +117,6 @@ async function testSignTransaction(session) {
     log("unsinged tx")
     log(rawUnsigTx);
     log("");
-
-    // let txDesc = {
-    //     inputs_count: txInfo.inputs.length,
-    //     outputs_count: txInfo.outputs.length,
-    //     coin_name: coin.charAt(0).toUpperCase() + coin.slice(1),
-    //     lock_time: 0,
-    // };
-
-    // await session.getFeatures();
-    // log("got features before sign");
-    // const res = await session.typedCall('SignTx', 'TxRequest', txDesc)
-    // log("got res from signTx", res);
-    // processTxRequest(session, res.message, serializedTx, signatures, index, inputs, outputs)
 }
 
 String.prototype.hexEncode = function(){
@@ -146,29 +134,80 @@ String.prototype.hexEncode = function(){
 // walletTxToBtcjsTx converts a tx decoded by the decred wallet (ie,
 // returned from the decodeRawTransaction call) into a bitcoinjs-compatible
 // transaction (to be used in trezor)
-function walletTxToBtcjsTx(tx, changeIndex) {
-    const inputs = tx.getInputsList().map(inp => ({
-        prev_hash: rawHashToHex(inp.getPreviousTransactionHash()),
-        prev_index: inp.getPreviousTransactionIndex(),
-        amount: inp.getAmountIn(),
-        // amount: 2e8,
-        // amount: -,
-        sequence: inp.getSequence(),
-        address_n: addressPath(0), // <--- this will be tricky.
-        // decredTree: inp.getTree(),
-        // decredScriptVersion: 0,
-    }));
+async function walletTxToBtcjsTx(tx, changeIndex, inputTxs, walletSvc) {
+    const inputTxsMap = inputTxs.reduce((m, tx) => {
+        m[rawHashToHex(tx.getTransactionHash())] = tx;
+        return m;
+    }, {});
 
-    log("xxxxxxx change index", changeIndex);
+    const inputs = [];
+    for (const inp of tx.getInputsList()) {
+        const inputTx = inputTxsMap[rawHashToHex(inp.getPreviousTransactionHash())];
+        if (!inputTx) throw "Cannot sign transaction without knowing source tx " +
+            rawHashToHex(inp.getPreviousTransactionHash());
 
-    // TODO: fail if len([i].getAddressesList()) != 1
-    // TODO: fail if version != 0
-    const outputs = tx.getOutputsList().map((outp, idx) => ({
-        amount: outp.getValue(),
-        script_type: "PAYTOADDRESS",
-        address: idx === changeIndex ? null : outp.getAddressesList()[0],
-        address_n: idx === changeIndex ? addressPath(0) : null,
-    }));
+        const inputTxOut = inputTx.getOutputsList()[inp.getPreviousTransactionIndex()];
+        if (!inputTxOut) throw sprintf("Trying to use unknown outpoint %s:%d as input",
+            rawHashToHex(inp.getPreviousTransactionHash()), inp.getPreviousTransactionIndex());
+
+        const addr = inputTxOut.getAddressesList()[0];
+        if (!addr) throw sprintf("Outpoint %s:%d does not have addresses.",
+            rawHashToHex(inp.getPreviousTransactionHash()), inp.getPreviousTransactionIndex());
+
+        const addrValidResp = await wallet.validateAddress(walletSvc, addr);
+        if (!addrValidResp.getIsValid()) throw "Input has an invalid address " + addr;
+
+        // Trezor firmware (mcu) currently (2018-06-25) only support signing
+        // when all inputs of the transaction are from the wallet. This happens
+        // due to the fact that trezor firmware re-calculates the source
+        // pkscript given the address_n of the input, instead of using it (the
+        // pkscript) directly when hashing the tx prior to signing. This needs
+        // to be changed so that we can perform more advanced types of
+        // transactions.
+        if (!addrValidResp.getIsMine()) throw "Trezor only supports signing when all inputs are from the wallet.";
+
+        const addrIndex = addrValidResp.getIndex();
+        const addrBranch = addrValidResp.getIsInternal() ? 1 : 0;
+        inputs.push({
+            prev_hash: rawHashToHex(inp.getPreviousTransactionHash()),
+            prev_index: inp.getPreviousTransactionIndex(),
+            amount: inp.getAmountIn(),
+            sequence: inp.getSequence(),
+            address_n: addressPath(addrIndex, addrBranch),
+
+            // FIXME: this needs to be supported on trezor.js.
+            // decredTree: inp.getTree(),
+            // decredScriptVersion: 0,
+        });
+    }
+
+    const outputs = [];
+    for (const outp of tx.getOutputsList()) {
+        if (outp.getAddressesList().length != 1) {
+            // TODO: this will be true on OP_RETURNs. Support those.
+            throw "Output has different number of addresses than expected";
+        }
+
+        const addr = outp.getAddressesList()[0];
+        const addrValidResp = await wallet.validateAddress(walletSvc, addr);
+        if (!addrValidResp.getIsValid()) throw "Not a valid address: " + addr;
+        let address_n = null;
+
+        if (outp.getIndex() === changeIndex) {
+            const addrIndex = addrValidResp.getIndex();
+            const addrBranch = addrValidResp.getIsInternal() ? 1 : 0;
+            address_n = addressPath(addrIndex, addrBranch);
+            addr = null;
+        }
+
+        outputs.push({
+            amount: outp.getValue(),
+            script_type: "PAYTOADDRESS", // needs to change on OP_RETURNs
+            address: addr,
+            address_n: address_n,
+        });
+    }
+
     const txInfo = {
         lock_time: tx.getLockTime(),
         version: tx.getVersion(),
@@ -186,12 +225,12 @@ function walletTxToRefTx(tx) {
         amount: inp.getAmountIn(),
         prev_hash: rawHashToHex(inp.getPreviousTransactionHash()),
         prev_index: inp.getPreviousTransactionIndex(),
+
+        // TODO: this needs to be supported on trezor.js
         // decredTree: inp.getTree(),
         // decredScriptVersion: 0,
     }));
 
-    // TODO: fail if len([i].getAddressesList()) != 1
-    // TODO: fail if version != 0
     const bin_outputs = tx.getOutputsList().map(outp => ({
         amount: outp.getValue(),
         script_pubkey: rawToHex(outp.getScript()),
@@ -204,7 +243,6 @@ function walletTxToRefTx(tx) {
         inputs,
         bin_outputs,
     };
-    log("ref tx ready", txInfo);
     return txInfo;
 }
 

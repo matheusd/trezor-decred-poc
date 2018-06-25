@@ -75,3 +75,10 @@ export const getInputTransactions = async (walletService, decodeMessageService, 
 
   return txs;
 }
+
+export const validateAddress = (walletService, address) =>
+  new Promise((resolve, reject) => {
+    const request = new pb.ValidateAddressRequest();
+    request.setAddress(address);
+    walletService.validateAddress(request, (error, response) => error ? reject(error) : resolve(response));
+  });
