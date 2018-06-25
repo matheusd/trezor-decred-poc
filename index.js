@@ -7,7 +7,7 @@ import { rawToHex, rawHashToHex } from "./helpers/bytes";
 var log = console.log;
 
 var trezor = require("trezor.js");
-var debug = true;
+var debug = false;
 
 var devList = new trezor.DeviceList({ debug });
 
@@ -106,7 +106,7 @@ async function testSignTransaction(session) {
     const inputTxs = await wallet.getInputTransactions(wsvc, decodeSvc, decodedUnsigTx);
     log("got input txs");
 
-    const txInfo = walletTxToBtcjsTx(decodedUnsigTx);
+    const txInfo = walletTxToBtcjsTx(decodedUnsigTx, rawUnsigTxResp.res.getChangeIndex());
     const refTxs = inputTxs.map(walletTxToRefTx);
     const signedResp = await session.signTx(txInfo.inputs, txInfo.outputs, refTxs, coin, 0);
     const signedRaw = signedResp.message.serialized.serialized_tx;
@@ -146,7 +146,7 @@ String.prototype.hexEncode = function(){
 // walletTxToBtcjsTx converts a tx decoded by the decred wallet (ie,
 // returned from the decodeRawTransaction call) into a bitcoinjs-compatible
 // transaction (to be used in trezor)
-function walletTxToBtcjsTx(tx) {
+function walletTxToBtcjsTx(tx, changeIndex) {
     const inputs = tx.getInputsList().map(inp => ({
         prev_hash: rawHashToHex(inp.getPreviousTransactionHash()),
         prev_index: inp.getPreviousTransactionIndex(),
@@ -159,12 +159,15 @@ function walletTxToBtcjsTx(tx) {
         // decredScriptVersion: 0,
     }));
 
+    log("xxxxxxx change index", changeIndex);
+
     // TODO: fail if len([i].getAddressesList()) != 1
     // TODO: fail if version != 0
-    const outputs = tx.getOutputsList().map(outp => ({
+    const outputs = tx.getOutputsList().map((outp, idx) => ({
         amount: outp.getValue(),
         script_type: "PAYTOADDRESS",
-        address: outp.getAddressesList()[0]
+        address: idx === changeIndex ? null : outp.getAddressesList()[0],
+        address_n: idx === changeIndex ? addressPath(0) : null,
     }));
     const txInfo = {
         lock_time: tx.getLockTime(),

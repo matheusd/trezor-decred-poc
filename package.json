@@ -11,6 +11,7 @@
     "babel-preset-env": "^1.7.0",
     "google-protobuf": "^3.5.0",
     "grpc": "^1.13.0-pre1",
+    "grpc-tools": "^1.6.6",
     "trezor.js": "^6.17.5"
   }
 }
