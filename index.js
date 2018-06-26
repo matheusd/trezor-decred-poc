@@ -46,7 +46,11 @@ function main(device) {
 
     device.on("pin", async (str, cb) => {
         const inp = await queryInput("Asking for pin " + str + " > ");
-        log("xxxxx got", inp);
+        cb(null, inp.trim());
+    });
+
+    device.on("passphrase", async (cb) => {
+        const inp = await queryInput("Asking for passphrase > ");
         cb(null, inp.trim());
     });
 
@@ -59,6 +63,8 @@ function main(device) {
         await testSignTransaction(session);
         // await testEnablePin(session);
         // await testDisablePin(session);
+        // await testDisablePassphrase(session);
+        // await testEnablePassphrase(session);
         log("================= done =====================");
     }).catch(err => log("Error in async main: ", err));
 }
@@ -133,6 +139,14 @@ async function testEnablePin(session) {
 
 async function testDisablePin(session) {
     await session.changePin(true);
+}
+
+async function testEnablePassphrase(session) {
+    await session.togglePassphrase(true);
+}
+
+async function testDisablePassphrase(session) {
+    await session.togglePassphrase(false);
 }
 
 String.prototype.hexEncode = function(){
