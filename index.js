@@ -54,17 +54,24 @@ function main(device) {
         cb(null, inp.trim());
     });
 
+    device.on("word", async cb => {
+        const inp = await queryInput("Type requested word > ");
+        cb(null, inp.trim());
+    });
+
     device.waitForSessionAndRun(async session => {
         log("got session");
         session.debug = debug;
         // await testGetAddress(session);
         // await testGetMasterPubKey(session);
         // await testSignMessage(session);
-        await testSignTransaction(session);
+        // await testSignTransaction(session);
         // await testEnablePin(session);
         // await testDisablePin(session);
         // await testDisablePassphrase(session);
         // await testEnablePassphrase(session);
+        // await testRecoverDevice(session);
+        // await testWipeDevice(session);
         log("================= done =====================");
     }).catch(err => log("Error in async main: ", err));
 }
@@ -110,7 +117,6 @@ async function testSignTransaction(session) {
     const rawUnsigTxResp = await wallet.constructTransaction(wsvc, 0, 1, [output])
     log("got raw unsig tx");
     const rawUnsigTx = rawToHex(rawUnsigTxResp.res.getUnsignedTransaction());
-    // const rawUnsigTx = "0100000001313eac6b551840d8f5a15c137cbeccd444fa524bbb7ce18c7691a196e3b0f2280100000000ffffffff02acc8520b0000000000001976a914d40271e5720b1fb9118fa496309d0f5d84419fc788ac809698000000000000001976a914917118753f286996d98295e578167e09f270bd6888ac000000000000000001ffffffffffffffff00000000ffffffff00"
 
     const decodedUnsigTx = await wallet.decodeTransaction(decodeSvc, rawUnsigTx)
     log("got decoded unsigned tx");
@@ -147,6 +153,21 @@ async function testEnablePassphrase(session) {
 
 async function testDisablePassphrase(session) {
     await session.togglePassphrase(false);
+}
+
+async function testRecoverDevice(session) {
+    const settings = {
+        word_count: 24,
+        passphrase_protection: false,
+        pin_protection: false,
+        label: "my test trezor",
+        dry_run: false,
+    };
+    await session.recoverDevice(settings);
+}
+
+async function testWipeDevice(session) {
+    await session.wipeDevice();
 }
 
 String.prototype.hexEncode = function(){
