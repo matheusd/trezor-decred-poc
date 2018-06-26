@@ -4,6 +4,7 @@ import * as wallet from "./helpers/wallet";
 import * as networks from "./helpers/networks";
 import { rawToHex, rawHashToHex, reverseHash } from "./helpers/bytes";
 import { sprintf } from "sprintf-js";
+import { queryInput } from "./helpers/input";
 
 var log = console.log;
 
@@ -43,6 +44,12 @@ function main(device) {
     log("features:", "imported=", feat.imported, "  initialized=", feat.initialized,
         "  needs_backup=", feat.needs_backup);
 
+    device.on("pin", async (str, cb) => {
+        const inp = await queryInput("Asking for pin " + str + " > ");
+        log("xxxxx got", inp);
+        cb(null, inp.trim());
+    });
+
     device.waitForSessionAndRun(async session => {
         log("got session");
         session.debug = debug;
@@ -50,13 +57,14 @@ function main(device) {
         // await testGetMasterPubKey(session);
         // await testSignMessage(session);
         await testSignTransaction(session);
-
+        // await testEnablePin(session);
+        // await testDisablePin(session);
         log("================= done =====================");
     }).catch(err => log("Error in async main: ", err));
 }
 
 async function testGetAddress(session) {
-    const addr = await session.getAddress(addressPath(14), coin, false);
+    const addr = await session.getAddress(addressPath(0), coin, false);
     log("got addr", addr);
 }
 
@@ -117,6 +125,14 @@ async function testSignTransaction(session) {
     log("unsinged tx")
     log(rawUnsigTx);
     log("");
+}
+
+async function testEnablePin(session) {
+    await session.changePin(false);
+}
+
+async function testDisablePin(session) {
+    await session.changePin(true);
 }
 
 String.prototype.hexEncode = function(){
