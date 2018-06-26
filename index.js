@@ -2,7 +2,7 @@ import { InitService, WalletCredentials } from "./helpers/services";
 import * as services from "./dcrwallet-api/api_grpc_pb";
 import * as wallet from "./helpers/wallet";
 import * as networks from "./helpers/networks";
-import { rawToHex, rawHashToHex, reverseHash } from "./helpers/bytes";
+import { rawToHex, rawHashToHex, reverseHash, str2hex, hex2b64 } from "./helpers/bytes";
 import { sprintf } from "sprintf-js";
 import { queryInput } from "./helpers/input";
 
@@ -64,7 +64,7 @@ function main(device) {
         session.debug = debug;
         // await testGetAddress(session);
         // await testGetMasterPubKey(session);
-        // await testSignMessage(session);
+        await testSignMessage(session);
         // await testSignTransaction(session);
         // await testEnablePin(session);
         // await testDisablePin(session);
@@ -92,18 +92,21 @@ async function testGetMasterPubKey(session) {
 }
 
 async function testSignMessage(session) {
-    const testMessage = "Help me obi-wan kenobi. You're my last hope!"
+    const testMessage = "Help me Obi-Wan Kenobi. You're my last hope."
 
     const signedMsg = await session.signMessage(addressPath(0),
-        testMessage.hexEncode(), coin, false);
+        str2hex(testMessage), coin, false);
 
     log("Signed Message", signedMsg);
 
+    const sig = hex2b64(signedMsg.message.signature);
+    log("Decrediton verifiable sig: ", sig);
+
     const wsvcMsg = await InitService(services.MessageVerificationServiceClient, walletCredentials);
-    log("got message verification svc from wallet", wsvcMsg);
+    log("got message verification svc from wallet");
 
     const verifyResp = await wallet.verifyMessage(wsvcMsg, signedMsg.message.address,
-        testMessage, signedMsg.message.signature)
+        testMessage, sig)
     log("got verify response", verifyResp.toObject());
 }
 
@@ -168,18 +171,6 @@ async function testRecoverDevice(session) {
 
 async function testWipeDevice(session) {
     await session.wipeDevice();
-}
-
-String.prototype.hexEncode = function(){
-    var hex, i;
-
-    var result = "";
-    for (i=0; i<this.length; i++) {
-        hex = this.charCodeAt(i).toString(16);
-        result += ("000"+hex).slice(-4);
-    }
-
-    return result
 }
 
 // walletTxToBtcjsTx converts a tx decoded by the decred wallet (ie,
