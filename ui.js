@@ -24,6 +24,9 @@ var uiActions = {
     clearSession: null,
     recoverDevice: null,
     changeLabel: null,
+    signMessage: null,
+    signTransaction: null,
+    stealDevice: null,
 
     switchLog: () => {
         debugLogger.toggle();
@@ -157,10 +160,13 @@ export function buildUI(actions) {
         { label: "toggle pin", keys: ["p"], callback: tryAction("togglePinProtection") },
         { label: "toggle passphrase", keys: ["k"], callback: tryAction("togglePassphraseProtection") },
         { label: "show features", keys: ["f"], callback: tryAction("showFeatures") },
+        { label: "sign message", keys: ["b"], callback: tryAction("signMessage") },
+        { label: "sign message", keys: ["t"], callback: tryAction("signTransaction") },
         { label: "clear session", keys: ["c"], callback: tryAction("clearSession") },
         { label: "wipe device", keys: ["C-w"], callback: tryAction("wipeDevice") },
         { label: "recover device", keys: ["C-r"], callback: tryAction("recoverDevice") },
         { label: "change label", keys: ["C-l"], callback: tryAction("changeLabel") },
+        { label: "steal device connx", keys: ["C-s"], callback: tryAction("stealDevice") },
         { label: "quit", keys: ["q"], callback: tryAction("quit") },
     ];
 
