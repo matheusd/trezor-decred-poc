@@ -4,14 +4,125 @@ import * as wallet from "./helpers/wallet";
 import * as networks from "./helpers/networks";
 import { rawToHex, rawHashToHex, reverseHash, str2hex, hex2b64 } from "./helpers/bytes";
 import { sprintf } from "sprintf-js";
-import { queryInput } from "./helpers/input";
+// import { queryInput } from "./helpers/input";
+import * as ui from "./ui";
+import * as trezor from "trezor.js";
+import { debuglog } from "util";
 
-var log = console.log;
+var devList;
+var devices = [];
+var currentDeviceIndex = 0;
+var debug = true;
+var log = ui.log;
+var debugLog = ui.debugLog;
 
-var trezor = require("trezor.js");
-var debug = false;
+function currentDevice() {
+    if (!devices[currentDeviceIndex]) {
+        throw "Selected device not available";
+    }
+    return devices[currentDeviceIndex].device;
+}
 
-var devList = new trezor.DeviceList({ debug });
+const uiActions = {
+    // actions done on a specific (connected/current) device
+    getAddress: () => currentDevice().run(async session => {
+        let res = await ui.queryInput("index [branch]");
+        const args = res.split(" ");
+        if (args.length < 1) return;
+
+        const address_n = addressPath(args[0], args[1]);
+        const resp = await session.getAddress(address_n, coin, false);
+        const addr = resp.message.address;
+        log("Address: %s", addr);
+    }),
+
+    getMasterPubKey: () => currentDevice().run(async session => {
+        const account = parseInt(await ui.queryInput("Account #"));
+
+        const path = [
+            (44 | hardeningConstant) >>> 0, // purpose
+            (cointype | hardeningConstant) >>> 0, // coin type
+            (account | hardeningConstant) >>> 0, // account
+        ];
+
+        const res = await session.getPublicKey(path, coin, false);
+        log("Extended PubKey of account %d: %s", account, res.message.xpub);
+    }),
+
+    togglePinProtection: () => currentDevice().run(async session => {
+        const newVal = !!currentDevice().features.pin_protection;
+        log("%s pin protection", newVal ? "Disabling" : "Enabling");
+        await session.changePin(newVal);
+    }),
+
+    togglePassphraseProtection: () => currentDevice().run(async session => {
+        const newVal = !currentDevice().features.passphrase_protection;
+        log("%s passphrase protection", !newVal ? "Disabling" : "Enabling");
+        await session.togglePassphrase(newVal);
+    }),
+
+    wipeDevice: () => currentDevice().run(async session => {
+        log("Trying to wipe device");
+        await session.wipeDevice();
+    }),
+
+    clearSession: () => currentDevice().run(async session => {
+        log("Clearing device session");
+        await session.clearSession();
+    }),
+
+    recoverDevice: () => currentDevice().run(async session => {
+        log("Starting recover procedure");
+        const wordCount = parseInt(await ui.queryInput("Number of recovery words (12, 18 or 24)"));
+        if ([12, 18, 24].indexOf(wordCount) === -1) {
+            throw "Not a valid word count";
+        }
+
+        const settings = {
+            word_count: wordCount,
+            passphrase_protection: false,
+            pin_protection: false,
+            label: "New DCR Trezor",
+            dry_run: false,
+        };
+
+        await session.recoverDevice(settings);
+    }),
+
+    changeLabel: () => currentDevice().run(async session => {
+        log("Changing device label");
+        const label = await ui.queryInput("New Label");
+        await session.changeLabel(label);
+    }),
+
+    // ui/informational actions
+    listDevices: () => {
+        if (!devices.length) {
+            log("No devices found.");
+            return
+        }
+        log("Listing devices");
+        devices.map((d, i) => {
+            const feat = d.device.features;
+            log("Device %d (%s): %s (%s)", i, d.state, feat.device_id, feat.label);
+        });
+        log("End of device list");
+    },
+
+    showFeatures: () => {
+        log("Features of current device");
+        log(JSON.stringify(currentDevice().features, null, 2));
+    }
+};
+
+ui.buildUI(uiActions);
+ui.runUI();
+
+console.log = ui.debugLog;
+console.warn = ui.debugLog;
+console.error = ui.debuglog;
+
+devList = new trezor.DeviceList({ debug });
 
 const coin = "Decred Testnet";
 const coinNetwork = networks.decred;
@@ -37,6 +148,41 @@ function exitSoon() {
     // }, 10000);
 }
 
+function setDeviceListeners(device) {
+
+    device.on("pin", async (str, cb) => {
+        try {
+            const inp = await ui.queryForPin();
+            debugLog("Got pin %s", inp);
+            cb(null, inp.trim());
+        } catch (error) {
+            log("Error waiting for pin: %s", error);
+            cb(error, "");
+        }
+    });
+
+    device.on("passphrase", async (cb) => {
+        try {
+            const inp = await ui.queryInput("Type the passphrase");
+            cb(null, inp.trim());
+        } catch (error) {
+            log("Error waiting for passphrase: %s", error);
+            cb(error, "");
+        }
+    });
+
+    device.on("word", async cb => {
+        try {
+            const inp = await ui.queryInput("Type the requested word");
+            cb(null, inp.trim());
+        } catch (error) {
+            log("Error waiting for word: %s", error);
+            cb(error, "");
+        }
+    });
+
+}
+
 function main(device) {
     const feat = device.features;
     const devVersion = feat.major_version + "." + feat.minor_version + "." + feat.patch_version;
@@ -45,8 +191,8 @@ function main(device) {
         "  needs_backup=", feat.needs_backup);
 
     device.on("pin", async (str, cb) => {
-        const inp = await queryInput("Asking for pin " + str + " > ");
-        cb(null, inp.trim());
+        // const inp = await queryInput("Asking for pin " + str + " > ");
+        // cb(null, inp.trim());
     });
 
     device.on("passphrase", async (cb) => {
@@ -64,7 +210,7 @@ function main(device) {
         session.debug = debug;
         // await testGetAddress(session);
         // await testGetMasterPubKey(session);
-        await testSignMessage(session);
+        // await testSignMessage(session);
         // await testSignTransaction(session);
         // await testEnablePin(session);
         // await testDisablePin(session);
@@ -72,7 +218,6 @@ function main(device) {
         // await testEnablePassphrase(session);
         // await testRecoverDevice(session);
         // await testWipeDevice(session);
-        log("================= done =====================");
     }).catch(err => log("Error in async main: ", err));
 }
 
@@ -288,10 +433,12 @@ function walletTxToRefTx(tx) {
     return txInfo;
 }
 
-log("got device list");
+log("Got device list");
 devList.on("connect", device => {
-    log("device connected", device.features.device_id);
-    setTimeout(() => main(device), 1000);
+    log("Device connected", device.features.device_id);
+    devices.push({ state: "connected", device });
+    setDeviceListeners(device);
+    // setTimeout(() => main(device), 1000);
 });
 devList.on("error", err => log("EEEERRRRORRR", err));
 devList.on("connectUnacquired", () => log("connectUnaquired"));
