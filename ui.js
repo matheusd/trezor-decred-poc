@@ -10,7 +10,7 @@ var logger;
 var debugLogger;
 var inputLine;
 var statusLine;
-var txtShownLog;
+var txtActiveDevice;
 var pinBox;
 var logFile = fs.createWriteStream("log.txt", {flags:'a'});
 
@@ -28,11 +28,12 @@ var uiActions = {
     signTransaction: null,
     stealDevice: null,
     changeActiveDevice: null,
+    installFirmware: null,
+    initDevice: null,
 
     switchLog: () => {
         debugLogger.toggle();
         logger.toggle();
-        txtShownLog.content = logger.visible ? "log" : "debug";
         screen.render();
     },
 
@@ -140,7 +141,12 @@ export function buildUI(actions) {
             }
         } catch (err) {
             if (err === "canceled") return;
-            log("Exception: %s", err);
+            if (err instanceof Error) {
+                log("Error:", err.message);
+                debugLog(err.stack);
+            } else {
+                log("Exception: %s", err);
+            }
         }
     };
 
@@ -166,8 +172,10 @@ export function buildUI(actions) {
         { label: "clear session", keys: ["c"], callback: tryAction("clearSession") },
         { label: "wipe device", keys: ["C-w"], callback: tryAction("wipeDevice") },
         { label: "recover device", keys: ["C-r"], callback: tryAction("recoverDevice") },
+        { label: "init device", keys: ["C-n"], callback: tryAction("initDevice") },
         { label: "change label", keys: ["C-l"], callback: tryAction("changeLabel") },
         { label: "steal device connx", keys: ["C-s"], callback: tryAction("stealDevice") },
+        { label: "install firmware", keys: ["C-f"], callback: tryAction("installFirmware") },
         { label: "quit", keys: ["q"], callback: tryAction("quit") },
     ];
 
@@ -202,12 +210,12 @@ export function buildUI(actions) {
         height: 1,
     });
 
-    txtShownLog = blessed.box({
+    txtActiveDevice = blessed.box({
         parent: statusLine,
-        content: "log",
+        content: "",
         fg: "#eee8d5",
         left: 1,
-        width: 10,
+        width: 20,
         bg: "#073642",
     });
 
@@ -249,6 +257,11 @@ export function buildUI(actions) {
     uiActions = Object.assign({}, uiActions, actions);
 }
 
+export function setActiveDeviceLabel(label) {
+    txtActiveDevice.setText(label);
+    screen.render();
+}
+
 export async function queryForPin() {
     pinBox.show();
     screen.render();
@@ -286,6 +299,11 @@ function logTo(dstLogger, format, ...args) {
         args.unshift(format);
         format = "%s";
     }
+
+    if (format.length > 1000) {
+        format = format.substring(0, 1000);
+    }
+
     format = '{#0fe1ab-fg}%s{/} ' + format;
     const now = new Date();
     const nowFmt = sprintf("%02d:%02d:%02d", now.getHours(),
@@ -297,7 +315,11 @@ function logTo(dstLogger, format, ...args) {
                 return `${f.substring(0, 1000)}...`;
             }
         } else if (typeof f === `object`) {
-            return JSON.stringify(f);
+            let asStr = JSON.stringify(f);
+            if (asStr.lenth > 1000) {
+                asStr = asStr.substring(0, 1000);
+            }
+            return asStr;
         }
         return f;
     }));

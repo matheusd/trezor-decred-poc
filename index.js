@@ -4,10 +4,12 @@ import * as networks from "./helpers/networks";
 import * as ui from "./ui";
 import * as trezor from "trezor.js";
 import * as trezorHelpers from "./helpers/trezor";
+import * as fs from "fs";
 
 import { InitService, WalletCredentials } from "./helpers/services";
 import { rawToHex, rawHashToHex, reverseHash, str2hex, hex2b64 } from "./helpers/bytes";
 import { sprintf } from "sprintf-js";
+import { globalCryptoShim } from "./helpers/random";
 
 // app constants
 const coin = "Decred Testnet";
@@ -15,6 +17,7 @@ const coinNetwork = networks.decred;
 const walletCredentials = WalletCredentials("127.0.0.1", 19121,
     "/home/user/.config/decrediton/wallets/testnet/trezor/rpc.cert");
 const debug = true;
+const firmwareV1Location = "../trezor-mcu/build/trezor-ddc51a3.bin";
 
 // helpers
 var log = ui.log;
@@ -22,6 +25,9 @@ var debugLog = ui.debugLog;
 console.log = ui.debugLog;
 console.warn = ui.debugLog;
 console.error = ui.debuglog;
+
+// this is needed because trezor.js does not recognize the node crypto module
+global.crypto = globalCryptoShim;
 
 // app state
 var devList;
@@ -179,6 +185,34 @@ const uiActions = {
         log("Device connection stolen and previous action cancelled");
     },
 
+    installFirmware: () => currentDevice().run(async session => {
+        if (currentDevice().features.major_version != 1) {
+            throw "Unsupported model for firmware upgrade";
+        }
+
+        const firmwarePath = firmwareV1Location;
+
+        log("Installing firmware from %s", firmwarePath);
+        const rawFirmware = fs.readFileSync(firmwarePath);
+        log("Read firmware. Size: %f KB", rawFirmware.length / 1000);
+        const hexFirmware = rawToHex(rawFirmware);
+        debugLog("got hex", hexFirmware);
+        await session.updateFirmware(hexFirmware);
+        log("Firmware installed");
+    }),
+
+    initDevice: () => currentDevice().run(async session => {
+        const settings = {
+            strength: 256,
+            passphrase_protection: false,
+            pin_protection: false,
+            label: "New DCR Trezor",
+        };
+        log("Initializing device");
+        await session.resetDevice(settings);
+        log("Device initialized with new seed");
+    }),
+
     // ui/informational/state actions
     listDevices: () => {
         if (!devices.length) {
@@ -210,6 +244,7 @@ const uiActions = {
 
         if (devices[index].state !== "connected") {
             log("Current device NOT connected");
+            ui.setActiveDeviceLabel(sprintf("%d (unconnected)", index));
             return;
         }
 
@@ -223,6 +258,7 @@ const uiActions = {
             bool(feat.initialized), bool(feat.pin_protection), bool(feat.passphrase_protection));
         log("imported=%s   needs_backup=%s   unfinished_backup=%s",
             bool(feat.imported), bool(feat.needs_backup), bool(feat.unfinished_backup));
+        ui.setActiveDeviceLabel(sprintf("%d '%s'", index, feat.label));
     },
 };
 
@@ -273,7 +309,9 @@ devList.on("connect", device => {
     log("Device connected", device.features.device_id);
     devices.push({ state: "connected", device });
     setDeviceListeners(device);
-    // setTimeout(() => main(device), 1000);
+    if (devices.length === 1) {
+        ui.setActiveDeviceLabel(sprintf("0 '%s'", device.features.label));
+    }
 });
 devList.on("error", err => log("EEEERRRRORRR", err));
 devList.on("connectUnacquired", device => {
