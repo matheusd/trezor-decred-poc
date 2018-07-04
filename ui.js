@@ -27,6 +27,7 @@ var uiActions = {
     signMessage: null,
     signTransaction: null,
     stealDevice: null,
+    changeActiveDevice: null,
 
     switchLog: () => {
         debugLogger.toggle();
@@ -175,6 +176,10 @@ export function buildUI(actions) {
         actionList.addItem(label);
         screen.key(a.keys[0], a.callback);
     });
+
+    for (let i = 0; i < 10; i++) {
+        screen.key(""+i, () => uiActions["changeActiveDevice"](i));
+    }
 
     inputLine = blessed.textbox({
         label: 'Command',

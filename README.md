@@ -15,3 +15,7 @@ these earlier stages, while full Decrediton integration is still some distance
 away.
 
 Relevent Decrediton issue: https://github.com/decred/decrediton/issues/1491
+
+### Reminders
+
+Run `trezord-go -e 21324` as root to be able to connect to physical devices.

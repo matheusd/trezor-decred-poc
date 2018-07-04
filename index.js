@@ -179,7 +179,7 @@ const uiActions = {
         log("Device connection stolen and previous action cancelled");
     },
 
-    // ui/informational actions
+    // ui/informational/state actions
     listDevices: () => {
         if (!devices.length) {
             log("No devices found.");
@@ -200,7 +200,30 @@ const uiActions = {
     showFeatures: () => {
         log("Features of current device");
         log(JSON.stringify(currentDevice().features, null, 2));
-    }
+    },
+
+    changeActiveDevice: index => {
+        if (!devices[index]) throw "Device does not exist";
+
+        currentDeviceIndex = index;
+        log("Changed active device to", index);
+
+        if (devices[index].state !== "connected") {
+            log("Current device NOT connected");
+            return;
+        }
+
+        const bool = b => b ? "true" : "false"
+        const feat = currentDevice().features;
+        const version = feat.major_version + "." + feat.minor_version + "." +
+            feat.patch_version;
+        log("id=%s  label='%s'   model=%d   version=%s", feat.device_id,
+            feat.label, feat.model, version);
+        log("initialized=%s   pin_protection=%s    passphrase_protection=%s",
+            bool(feat.initialized), bool(feat.pin_protection), bool(feat.passphrase_protection));
+        log("imported=%s   needs_backup=%s   unfinished_backup=%s",
+            bool(feat.imported), bool(feat.needs_backup), bool(feat.unfinished_backup));
+    },
 };
 
 function setDeviceListeners(device) {
