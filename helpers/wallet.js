@@ -80,11 +80,8 @@ export const publishTransaction = (walletService, rawTx) =>
 export const getInputTransactions = async (walletService, decodeMessageService, srcTx) => {
   const txs = [];
   for (let inp of srcTx.getInputsList()) {
-    console.log("gonna get from");
     const inpTx = await getTransaction(walletService, rawHashToHex(inp.getPreviousTransactionHash()));
-    console.log("got transaction");
     const decodedInp = await decodeTransaction(decodeMessageService, inpTx.getTransaction());
-    console.log("decoded transaction");
     txs.push(decodedInp);
   }
 

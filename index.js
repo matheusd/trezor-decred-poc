@@ -45,6 +45,32 @@ function currentDevice() {
     return devices[currentDeviceIndex].device;
 }
 
+function replaceDevice(path, newDevice) {
+    const idx = devices.findIndex(d => d.device.originalDescriptor.path === path)
+    if ((idx === -1) && !newDevice) {
+        // nothing to do, as we're trying to remove a device that never existed
+    } else if ((idx > -1) && !newDevice) {
+        // just remove the existing device
+        devices.splice(idx, 1);
+    } else if (idx === -1) {
+        // new device. Add to list.
+        devices.push(newDevice);
+    } else {
+        // existing device. Replace.
+        devices.splice(idx, 1, newDevice);
+    }
+
+    if (currentDeviceIndex >= devices.length) {
+        currentDeviceIndex = Math.max(devices.length -1, 0);
+        uiActions.changeActiveDevice(currentDeviceIndex);
+    } else if (currentDeviceIndex === idx) {
+        uiActions.changeActiveDevice(currentDeviceIndex);
+    } else if ((idx > -1) && (idx < currentDeviceIndex)) {
+        currentDeviceIndex--;
+        uiActions.changeActiveDevice(currentDeviceIndex);
+    }
+}
+
 const uiActions = {
     // actions done on a specific (connected/current) device
     getAddress: () => currentDevice().run(async session => {
@@ -246,7 +272,7 @@ const uiActions = {
     },
 
     changeActiveDevice: index => {
-        if (!devices[index]) throw "Device does not exist";
+        if (!devices[index]) throw sprintf("Device %d does not exist", index);
 
         currentDeviceIndex = index;
         log("Changed active device to", index);
@@ -321,7 +347,7 @@ devList = new trezor.DeviceList({ debug });
 log("Got device list");
 devList.on("connect", device => {
     log("Device connected", device.features.device_id);
-    devices.push({ state: "connected", device });
+    replaceDevice(device.originalDescriptor.path, { state: "connected", device })
     setDeviceListeners(device);
     if (devices.length === 1) {
         ui.setActiveDeviceLabel(sprintf("0 '%s'", device.features.label));
@@ -330,11 +356,16 @@ devList.on("connect", device => {
 devList.on("error", err => log("EEEERRRRORRR", err));
 devList.on("connectUnacquired", device => {
     log("Detected device in use");
-    devices.push({ state: "unacquired", device });
+    replaceDevice(device.originalDescriptor.path, { state: "unacquired", device })
 });
-devList.on("disconnectUnacquired", () => log("disconnectUnaquired"));
-devList.on("disconnect", device => log("device disconnected", device.features.device_id));
+devList.on("disconnectUnacquired", device => {
+    log("Unacquired device disconnected");
+    replaceDevice(device.originalDescriptor.path, null);
+});
+devList.on("disconnect", device => {
+    log("Device disconnected", device.features.device_id);
+    replaceDevice(device.originalDescriptor.path, null);
+});
 devList.on("transport", t => {
-    log("transport obtained", t.activeName, t.version);
-    exitSoon();
+    log("Transport obtained", t.activeName, t.version);
 });
