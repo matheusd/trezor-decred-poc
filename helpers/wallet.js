@@ -60,6 +60,21 @@ export const decodeTransaction = (decodeMessageService, rawTx) =>
     });
   });
 
+export const publishTransaction = (walletService, rawTx) =>
+  new Promise((resolve, reject) => {
+    var request = new pb.PublishTransactionRequest();
+    var buffer = Buffer.isBuffer(rawTx) ? rawTx : Buffer.from(rawTx, "hex");
+    var buff = new Uint8Array(buffer);
+    request.setSignedTransaction(buff);
+    walletService.publishTransaction(request, (error, resp) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(rawHashToHex(resp.getTransactionHash()));
+      }
+    });
+  });
+
 // getInputTransactions returns the input transactions to the given source
 // transaction (assumes srcTx was returned from decodeTransaction).
 export const getInputTransactions = async (walletService, decodeMessageService, srcTx) => {

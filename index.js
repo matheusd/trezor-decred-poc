@@ -33,6 +33,7 @@ global.crypto = globalCryptoShim;
 var devList;
 var devices = [];
 var currentDeviceIndex = 0;
+var publishTxs = false;
 
 function currentDevice() {
     if (!devices[currentDeviceIndex]) {
@@ -174,8 +175,16 @@ const uiActions = {
         log("Going to sign tx on trezor");
         const signedResp = await session.signTx(txInfo.inputs, txInfo.outputs, refTxs, coin, 0);
         const signedRaw = signedResp.message.serialized.serialized_tx;
-        log("Successfully signed tx. Raw hex tx follows.");
-        log(signedRaw);
+        log("Successfully signed tx");
+
+        if (!publishTxs) {
+            log("Raw hex tx follows.");
+            log(signedRaw);
+            return;
+        }
+
+        const txHash = await wallet.publishTransaction(wsvc, signedRaw);
+        log("Published tx", txHash);
     }),
 
     stealDevice: async () => {
@@ -259,6 +268,11 @@ const uiActions = {
         log("imported=%s   needs_backup=%s   unfinished_backup=%s",
             bool(feat.imported), bool(feat.needs_backup), bool(feat.unfinished_backup));
         ui.setActiveDeviceLabel(sprintf("%d '%s'", index, feat.label));
+    },
+
+    togglePublishTxs: () => {
+        publishTxs = !publishTxs;
+        ui.setPublishTxsState(publishTxs);
     },
 };
 

@@ -11,6 +11,7 @@ var debugLogger;
 var inputLine;
 var statusLine;
 var txtActiveDevice;
+var txtPublishTxs;
 var pinBox;
 var logFile = fs.createWriteStream("log.txt", {flags:'a'});
 
@@ -30,6 +31,7 @@ var uiActions = {
     changeActiveDevice: null,
     installFirmware: null,
     initDevice: null,
+    togglePublishTxs: null,
 
     switchLog: () => {
         debugLogger.toggle();
@@ -168,7 +170,7 @@ export function buildUI(actions) {
         { label: "toggle passphrase", keys: ["k"], callback: tryAction("togglePassphraseProtection") },
         { label: "show features", keys: ["f"], callback: tryAction("showFeatures") },
         { label: "sign message", keys: ["b"], callback: tryAction("signMessage") },
-        { label: "sign message", keys: ["t"], callback: tryAction("signTransaction") },
+        { label: "sign transaction", keys: ["t"], callback: tryAction("signTransaction") },
         { label: "clear session", keys: ["c"], callback: tryAction("clearSession") },
         { label: "wipe device", keys: ["C-w"], callback: tryAction("wipeDevice") },
         { label: "recover device", keys: ["C-r"], callback: tryAction("recoverDevice") },
@@ -176,6 +178,7 @@ export function buildUI(actions) {
         { label: "change label", keys: ["C-l"], callback: tryAction("changeLabel") },
         { label: "steal device connx", keys: ["C-s"], callback: tryAction("stealDevice") },
         { label: "install firmware", keys: ["C-f"], callback: tryAction("installFirmware") },
+        { label: "toggle publish txs", keys: ["S-t"], callback: tryAction("togglePublishTxs") },
         { label: "quit", keys: ["q"], callback: tryAction("quit") },
     ];
 
@@ -219,6 +222,15 @@ export function buildUI(actions) {
         bg: "#073642",
     });
 
+    txtPublishTxs = blessed.box({
+        parent: statusLine,
+        content: "",
+        fg: "#eee8d5",
+        left: 25,
+        width: 16,
+        bg: "#073642",
+    });
+
     pinBox = blessed.box({
         parent: screen,
         top: "center",
@@ -259,6 +271,11 @@ export function buildUI(actions) {
 
 export function setActiveDeviceLabel(label) {
     txtActiveDevice.setText(label);
+    screen.render();
+}
+
+export function setPublishTxsState(state) {
+    txtPublishTxs.setText(state ? "PUBLISHING TXs" : "");
     screen.render();
 }
 
