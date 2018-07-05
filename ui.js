@@ -32,6 +32,7 @@ var uiActions = {
     installFirmware: null,
     initDevice: null,
     togglePublishTxs: null,
+    changeHomeScreen: null,
 
     switchLog: () => {
         debugLogger.toggle();
@@ -159,6 +160,17 @@ export function buildUI(actions) {
         bottom: 4,
         border: "line",
         label: "Actions",
+        scrollable: true,
+        mouse: true,
+        scrollbar: {
+            ch: ' ',
+            track: {
+                bg: 'yellow'
+            },
+            style: {
+                inverse: true
+            }
+        }
     })
 
     const actionsDefns = [
@@ -176,6 +188,7 @@ export function buildUI(actions) {
         { label: "recover device", keys: ["C-r"], callback: tryAction("recoverDevice") },
         { label: "init device", keys: ["C-n"], callback: tryAction("initDevice") },
         { label: "change label", keys: ["C-l"], callback: tryAction("changeLabel") },
+        { label: "change homescreen", keys: ["C-g"], callback: tryAction("changeHomeScreen") },
         { label: "steal device connx", keys: ["C-s"], callback: tryAction("stealDevice") },
         { label: "install firmware", keys: ["C-f"], callback: tryAction("installFirmware") },
         { label: "toggle publish txs", keys: ["S-t"], callback: tryAction("togglePublishTxs") },

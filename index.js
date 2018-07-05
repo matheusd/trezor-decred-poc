@@ -5,6 +5,7 @@ import * as ui from "./ui";
 import * as trezor from "trezor.js";
 import * as trezorHelpers from "./helpers/trezor";
 import * as fs from "fs";
+import * as homescreens from "./helpers/homescreens";
 
 import { InitService, WalletCredentials } from "./helpers/services";
 import { rawToHex, rawHashToHex, reverseHash, str2hex, hex2b64 } from "./helpers/bytes";
@@ -246,6 +247,11 @@ const uiActions = {
         log("Initializing device");
         await session.resetDevice(settings);
         log("Device initialized with new seed");
+    }),
+
+    changeHomeScreen: () => currentDevice().run(async session => {
+        log("Changing home screen to DCR");
+        await session.changeHomescreen(homescreens.decred);
     }),
 
     // ui/informational/state actions
