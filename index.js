@@ -25,7 +25,7 @@ var log = ui.log;
 var debugLog = ui.debugLog;
 console.log = ui.debugLog;
 console.warn = ui.debugLog;
-console.error = ui.debuglog;
+console.error = ui.debugLog;
 
 // this is needed because trezor.js does not recognize the node crypto module
 global.crypto = globalCryptoShim;
@@ -70,6 +70,43 @@ function replaceDevice(path, newDevice) {
         currentDeviceIndex--;
         uiActions.changeActiveDevice(currentDeviceIndex);
     }
+}
+
+function loadDeviceList() {
+    devList = new trezor.DeviceList({ debug });
+
+    log("Got device list");
+    devList.on("connect", device => {
+        log("Device connected", device.features.device_id);
+        replaceDevice(device.originalDescriptor.path, { state: "connected", device })
+        setDeviceListeners(device);
+        if (devices.length === 1) {
+            ui.setActiveDeviceLabel(sprintf("0 '%s'", device.features.label));
+        }
+    });
+    devList.on("error", err => {
+        if (err instanceof Error) {
+            log("Error:", err.message);
+            debugLog(err.stack);
+        } else {
+            log("Error:", err);
+        }
+    });
+    devList.on("connectUnacquired", device => {
+        log("Detected device in use");
+        replaceDevice(device.originalDescriptor.path, { state: "unacquired", device })
+    });
+    devList.on("disconnectUnacquired", device => {
+        log("Unacquired device disconnected");
+        replaceDevice(device.originalDescriptor.path, null);
+    });
+    devList.on("disconnect", device => {
+        log("Device disconnected", device.features.device_id);
+        replaceDevice(device.originalDescriptor.path, null);
+    });
+    devList.on("transport", t => {
+        log("Transport obtained", t.activeName, t.version);
+    });
 }
 
 const uiActions = {
@@ -254,6 +291,13 @@ const uiActions = {
         await session.changeHomescreen(homescreens.decred);
     }),
 
+    reloadDeviceList: () => {
+        devices.splice(0, devices.length);
+        currentDeviceIndex = 0;
+        log("Reloading device list");
+        loadDeviceList();
+    },
+
     // ui/informational/state actions
     listDevices: () => {
         if (!devices.length) {
@@ -344,34 +388,6 @@ function setDeviceListeners(device) {
 }
 
 // start of main procedure
-
 ui.buildUI(uiActions);
 ui.runUI();
-
-devList = new trezor.DeviceList({ debug });
-
-log("Got device list");
-devList.on("connect", device => {
-    log("Device connected", device.features.device_id);
-    replaceDevice(device.originalDescriptor.path, { state: "connected", device })
-    setDeviceListeners(device);
-    if (devices.length === 1) {
-        ui.setActiveDeviceLabel(sprintf("0 '%s'", device.features.label));
-    }
-});
-devList.on("error", err => log("EEEERRRRORRR", err));
-devList.on("connectUnacquired", device => {
-    log("Detected device in use");
-    replaceDevice(device.originalDescriptor.path, { state: "unacquired", device })
-});
-devList.on("disconnectUnacquired", device => {
-    log("Unacquired device disconnected");
-    replaceDevice(device.originalDescriptor.path, null);
-});
-devList.on("disconnect", device => {
-    log("Device disconnected", device.features.device_id);
-    replaceDevice(device.originalDescriptor.path, null);
-});
-devList.on("transport", t => {
-    log("Transport obtained", t.activeName, t.version);
-});
+setTimeout(loadDeviceList, 1000);

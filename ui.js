@@ -33,6 +33,7 @@ var uiActions = {
     initDevice: null,
     togglePublishTxs: null,
     changeHomeScreen: null,
+    reloadDeviceList: null,
 
     switchLog: () => {
         debugLogger.toggle();
@@ -191,6 +192,7 @@ export function buildUI(actions) {
         { label: "change homescreen", keys: ["C-g"], callback: tryAction("changeHomeScreen") },
         { label: "steal device connx", keys: ["C-s"], callback: tryAction("stealDevice") },
         { label: "install firmware", keys: ["C-f"], callback: tryAction("installFirmware") },
+        { label: "reload device list", keys: ["C-d"], callback: tryAction("reloadDeviceList") },
         { label: "toggle publish txs", keys: ["S-t"], callback: tryAction("togglePublishTxs") },
         { label: "quit", keys: ["q"], callback: tryAction("quit") },
     ];
@@ -344,6 +346,8 @@ function logTo(dstLogger, format, ...args) {
             if (f.length > 1000) {
                 return `${f.substring(0, 1000)}...`;
             }
+        } else if (f instanceof Error) {
+            return f.stack;
         } else if (typeof f === `object`) {
             let asStr = JSON.stringify(f);
             if (asStr.lenth > 1000) {
