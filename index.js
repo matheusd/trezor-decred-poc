@@ -358,6 +358,33 @@ const uiActions = {
         ui.setActiveDeviceLabel(sprintf("%d '%s'", index, feat.label));
     },
 
+    validateAddress: async () => {
+        const addr = await ui.queryInput("Address to validate");
+        if (!addr) return;
+
+        const wsvc = await InitService(services.WalletServiceClient, walletCredentials);
+        const resp = await wallet.validateAddress(wsvc, addr);
+
+        const bool = b => b ? "true" : "false"
+        log("Validating %s", addr);
+        log("Valid=%s  Mine=%s  Script=%s  Account=%d  Internal=%s  Index=%d",
+            bool(resp.getIsValid()), bool(resp.getIsMine()), bool(resp.getIsScript()),
+            resp.getAccountNumber(), bool(resp.getIsInternal()), resp.getIndex());
+        log("PubKeyAddress: %s", resp.getPubKeyAddr());
+        log("PubKey: %s", rawToHex(resp.getPubKey()));
+    },
+
+    importScript: async () => {
+        const script = await ui.queryInput("Hex raw script");
+        if (!script) return;
+
+        const wsvc = await InitService(services.WalletServiceClient, walletCredentials);
+        const resp = await wallet.importScript(wsvc, "", script, false, 0);
+        log("");
+        log(resp.toObject());
+        log("Resulting P2SH Address: %s", resp.getP2shAddress());
+    },
+
     togglePublishTxs: () => {
         publishTxs = !publishTxs;
         ui.setPublishTxsState(publishTxs);

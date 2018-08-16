@@ -20,6 +20,10 @@ export function rawHashToHex(raw) {
   return reverseHash(Buffer.from(raw).toString("hex"))
 }
 
+export function hexToRaw(hex) {
+  return new Uint8Array(Buffer.from(hex, "hex"));
+}
+
 export function reverseHash(s) {
   s = s.replace(/^(.(..)*)$/, "0$1"); // add a leading zero if needed
   var a = s.match(/../g);             // split number in groups of two

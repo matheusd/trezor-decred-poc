@@ -35,6 +35,8 @@ var uiActions = {
     togglePublishTxs: null,
     changeHomeScreen: null,
     reloadDeviceList: null,
+    validateAddress: null,
+    importScript: null,
 
     switchLog: () => {
         debugLogger.toggle();
@@ -180,6 +182,7 @@ export function buildUI(actions) {
         { label: "switch log", keys: ["l"], callback: tryAction("switchLog") },
         { label: "list devices", keys: ["d"], callback: tryAction("listDevices") },
         { label: "get MasterPubKey", keys: ["m"], callback: tryAction("getMasterPubKey") },
+        { label: "validate address on wallet", keys: ['v'], callback: tryAction("validateAddress") },
         { label: "get HD path", keys: ["h"], callback: tryAction("getHDPath") },
         { label: "toggle pin", keys: ["p"], callback: tryAction("togglePinProtection") },
         { label: "toggle passphrase", keys: ["k"], callback: tryAction("togglePassphraseProtection") },
@@ -187,6 +190,7 @@ export function buildUI(actions) {
         { label: "sign message", keys: ["b"], callback: tryAction("signMessage") },
         { label: "sign transaction", keys: ["t"], callback: tryAction("signTransaction") },
         { label: "clear session", keys: ["c"], callback: tryAction("clearSession") },
+        { label: "import wallet script", keys: ["C-u"], callback: tryAction("importScript") },
         { label: "wipe device", keys: ["C-w"], callback: tryAction("wipeDevice") },
         { label: "recover device", keys: ["C-r"], callback: tryAction("recoverDevice") },
         { label: "init device", keys: ["C-n"], callback: tryAction("initDevice") },

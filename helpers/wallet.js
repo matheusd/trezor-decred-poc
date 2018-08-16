@@ -1,4 +1,4 @@
-import { strHashToRaw, rawHashToHex } from "./bytes";
+import { strHashToRaw, rawHashToHex, hexToRaw } from "./bytes";
 import * as pb from "../dcrwallet-api/api_pb";
 
 export const getTransaction = (walletService, txHash) =>
@@ -93,4 +93,15 @@ export const validateAddress = (walletService, address) =>
     const request = new pb.ValidateAddressRequest();
     request.setAddress(address);
     walletService.validateAddress(request, (error, response) => error ? reject(error) : resolve(response));
+  });
+
+export const importScript = (walletService, passphrase, script, rescan, scanFrom) =>
+  new Promise((ok, fail) => {
+    const request = new pb.ImportScriptRequest();
+    request.setPassphrase(new Uint8Array(Buffer.from(passphrase)));
+    request.setScript(hexToRaw(script));
+    request.setRescan(rescan);
+    request.setScanFrom(scanFrom);
+    request.setRequireRedeemable(true);
+    walletService.importScript(request, (err, res) => err ? fail(err) : ok(res));
   });
