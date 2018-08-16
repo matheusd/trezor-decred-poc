@@ -28,19 +28,9 @@ export function reverseHash(s) {
   return s2;
 }
 
-// str2hex converts an (ascii only) string into hex.
-export function str2hex (str) {
-  var hex, i;
-
-  // TODO: exception on non-ascii
-
-  var result = "";
-  for (i = 0; i < str.length; i++) {
-      hex = str.charCodeAt(i).toString(16);
-      result += ("000"+hex).slice(-2);
-  }
-
-  return result
+// str2utf8hex converts a (js, utf-16) string into (utf-8 encoded) hex.
+export function str2utf8hex (str) {
+  return Buffer.from(str).toString("hex");
 }
 
 export function hex2b64(hex) {

@@ -8,7 +8,7 @@ import * as fs from "fs";
 import * as homescreens from "./helpers/homescreens";
 
 import { InitService, WalletCredentials } from "./helpers/services";
-import { rawToHex, rawHashToHex, reverseHash, str2hex, hex2b64 } from "./helpers/bytes";
+import { rawToHex, rawHashToHex, reverseHash, str2hex, hex2b64, str2utf8hex } from "./helpers/bytes";
 import { sprintf } from "sprintf-js";
 import { globalCryptoShim } from "./helpers/random";
 
@@ -131,6 +131,18 @@ const uiActions = {
         log("Extended PubKey of account %d: %s", account, res.message.xpub);
     }),
 
+    getHDPath: () => currentDevice().run(async session => {
+        let input = await ui.queryInput("HD Path (use ' for hardened)")
+        input = input.split(" ").filter(v => v.length > 0)
+        const path = trezorHelpers.pathDefinition2path(input);
+
+        const res = await session.getPublicKey(path, coin, false);
+        log("Extended PubKey %s", res.message.xpub);
+
+        const resp = await session.getAddress(path, coin, false);
+        log("Address: %s", resp.message.address);
+    }),
+
     togglePinProtection: () => currentDevice().run(async session => {
         const newVal = !!currentDevice().features.pin_protection;
         log("%s pin protection", newVal ? "Disabling" : "Enabling");
@@ -189,7 +201,7 @@ const uiActions = {
 
         log("Signging message '%s'", testMessage);
         const signedMsg = await session.signMessage(address_n,
-            str2hex(testMessage), coin, false);
+            str2utf8hex(testMessage), coin, false);
 
         debugLog("Signed Message", signedMsg);
         log("Signed using address", signedMsg.message.address);

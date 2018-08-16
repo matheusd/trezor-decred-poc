@@ -2,7 +2,7 @@ import * as wallet from "./wallet";
 import { rawHashToHex, rawToHex } from "./bytes";
 
 const hardeningConstant = 0x80000000;
-const cointype = 0; // 0 = bitcoin, 42 = decred
+const cointype = 1; // 0 = bitcoin, 42 = decred, 1 = decred testnet
 
 export function addressPath(index, branch) {
     return [
@@ -20,6 +20,15 @@ export function accountPath(account) {
         (cointype | hardeningConstant) >>> 0, // coin type
         (account | hardeningConstant) >>> 0, // account
     ];
+}
+
+export function pathDefinition2path(path) {
+    return path.map(v => {
+        const hardened = v[v.length-1] === "'"
+        const nb = parseInt(hardened ? v.substring(0, v.length-1) : v);
+        if (hardened) return (nb | hardeningConstant) >>> 0
+        else return nb >>> 0;
+    });
 }
 
 /******************************************************************************
