@@ -23,6 +23,7 @@ service WalletService {
 	rpc AccountNumber (AccountNumberRequest) returns (AccountNumberResponse);
 	rpc Accounts (AccountsRequest) returns (AccountsResponse);
 	rpc Balance (BalanceRequest) returns (BalanceResponse);
+	rpc GetAccountExtendedPubKey (GetAccountExtendedPubKeyRequest) returns (GetAccountExtendedPubKeyResponse);	
 	rpc GetTransaction (GetTransactionRequest) returns (GetTransactionResponse);
 	rpc GetTransactions (GetTransactionsRequest) returns (stream GetTransactionsResponse);
 	rpc GetTickets (GetTicketsRequest) returns (stream GetTicketsResponse);
@@ -71,6 +72,9 @@ service WalletLoaderService {
 	rpc DiscoverAddresses (DiscoverAddressesRequest) returns (DiscoverAddressesResponse);
 	rpc SubscribeToBlockNotifications (SubscribeToBlockNotificationsRequest) returns (SubscribeToBlockNotificationsResponse);
 	rpc FetchHeaders(FetchHeadersRequest) returns (FetchHeadersResponse);
+	rpc FetchMissingCFilters(FetchMissingCFiltersRequest) returns (FetchMissingCFiltersResponse);
+	rpc SpvSync(SpvSyncRequest) returns (stream SpvSyncResponse);
+	rpc RescanPoint(RescanPointRequest) returns (RescanPointResponse);
 }
 
 service TicketBuyerService {
@@ -187,6 +191,7 @@ message RenameAccountResponse {}
 
 message RescanRequest {
 	int32 begin_height = 1;
+	bytes begin_hash = 2;
 }
 message RescanResponse {
 	int32 rescanned_through = 1;
@@ -538,6 +543,8 @@ message PurchaseTicketsRequest {
 }
 message PurchaseTicketsResponse {
 	repeated bytes ticket_hashes = 1;
+	bytes split_bytes = 2;
+	repeated bytes tickets_bytes = 3;
 }
 
 message RevokeTicketsRequest {
@@ -658,8 +665,12 @@ message StartConsensusRpcResponse {}
 message DiscoverAddressesRequest {
 	bool discover_accounts = 1;
 	bytes private_passphrase = 2;
+	bytes starting_block_hash = 3;
 }
 message DiscoverAddressesResponse {}
+
+message FetchMissingCFiltersRequest {}
+message FetchMissingCFiltersResponse {}
 
 message SubscribeToBlockNotificationsRequest {}
 message SubscribeToBlockNotificationsResponse {}
@@ -671,6 +682,20 @@ message FetchHeadersResponse {
 	int32 first_new_block_height = 3;
 	bytes main_chain_tip_block_hash = 4;
 	int32 main_chain_tip_block_height = 5;
+}
+
+message SpvSyncRequest {
+	bool discover_accounts = 1;
+	bytes private_passphrase = 2;
+	repeated string spv_connect = 3;
+}
+message SpvSyncResponse {
+	bool synced = 1;
+}
+
+message RescanPointRequest {}
+message RescanPointResponse {
+	bytes rescan_point_hash = 1;
 }
 
 message GenerateRandomSeedRequest {
@@ -927,6 +952,14 @@ message ValidateAddressResponse {
 
 message CommittedTicketsRequest {
 	repeated bytes tickets = 1;
+}
+
+message GetAccountExtendedPubKeyRequest {
+	uint32 account_number = 1;
+}
+
+message GetAccountExtendedPubKeyResponse {
+	string acc_extended_pub_key = 1;
 }
 
 message CommittedTicketsResponse {

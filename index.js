@@ -246,7 +246,7 @@ const uiActions = {
         log("Got input transactions (to extract pkscripts)");
 
         const txInfo = await trezorHelpers.walletTxToBtcjsTx(decodedUnsigTx,
-            rawUnsigTxResp.res.getChangeIndex(), inputTxs, wsvc);
+            inputTxs, wsvc);
         const refTxs = inputTxs.map(trezorHelpers.walletTxToRefTx);
         log("Going to sign tx on trezor");
         const signedResp = await session.signTx(txInfo.inputs, txInfo.outputs, refTxs, coin, 0);
@@ -380,10 +380,71 @@ const uiActions = {
 
         const wsvc = await InitService(services.WalletServiceClient, walletCredentials);
         const resp = await wallet.importScript(wsvc, "", script, false, 0);
-        log("");
-        log(resp.toObject());
+        debugLog(resp.toObject());
         log("Resulting P2SH Address: %s", resp.getP2shAddress());
     },
+
+    purchaseTickets: () => currentDevice().run(async session => {
+
+        const numTickets = parseInt(await ui.queryInput("Number of Tickets"));
+        if (!numTickets) return;
+
+        const wsvc = await InitService(services.WalletServiceClient, walletCredentials);
+        const decodeSvc = await InitService(services.DecodeMessageServiceClient, walletCredentials);
+
+        const bestBlock = await wallet.bestBlock(wsvc);
+
+        const passphrase = "";
+        const accountNum = 0;
+        const spendLimit = 21e15;
+        const requiredConf = 1;
+        const expiry = bestBlock.getHeight() + 16;
+        const ticketFee = 1e5;
+        const txFee = 1e5;
+        const stakepool = {
+            TicketAddress: "TcdKvojDtivHbWyVUff8R8qJ56mnUSDUypz",
+            PoolAddress: "TseWciFBQa2Ra5jtXuyg8CBNopeM133c7Uy",
+            PoolFees: 7.5,
+        };
+
+        const resp = await wallet.purchaseTickets(wsvc, passphrase, accountNum,
+            spendLimit, requiredConf, numTickets, expiry, ticketFee, txFee,
+            stakepool);
+
+        debugLog("Got tickets from wallet");
+        debugLog(resp.toObject());
+
+        const signSplitTx = async rawUnsigTx => {
+            const decodedUnsigTx = await wallet.decodeTransaction(decodeSvc, rawUnsigTx)
+            const inputTxs = await wallet.getInputTransactions(wsvc, decodeSvc, decodedUnsigTx);
+            const txInfo = await trezorHelpers.walletTxToBtcjsTx(decodedUnsigTx, inputTxs, wsvc);
+            const refTxs = inputTxs.map(trezorHelpers.walletTxToRefTx);
+            const signedResp = await session.signTx(txInfo.inputs, txInfo.outputs, refTxs, coin, 0);
+            const signedRaw = signedResp.message.serialized.serialized_tx;
+            return signedRaw
+        };
+
+        const signTicketTx = async (rawUnsigTx, decodedSplit, splitRefTx) => {
+            const decodedUnsigTx = await wallet.decodeTransaction(decodeSvc, rawUnsigTx)
+            const txInfo = await trezorHelpers.walletTxToBtcjsTx(decodedUnsigTx, [decodedSplit], wsvc);
+            const signedResp = await session.signTx(txInfo.inputs, txInfo.outputs, [splitRefTx], coin, 0);
+            const signedRaw = signedResp.message.serialized.serialized_tx;
+            return signedRaw
+        };
+
+        const signedSplit = await signSplitTx(resp.getSplitBytes());
+        const decodedSplit = await wallet.decodeTransaction(decodeSvc, signedSplit);
+        const splitRefTx = trezorHelpers.walletTxToRefTx(decodedSplit);
+        log("Signed Split Transaction");
+        log(signedSplit);
+
+        const unsignedTickets = resp.getTicketsBytesList();
+        for (let i = 0; i < unsignedTickets.length; i++) {
+            const signed = await signTicketTx(unsignedTickets[i], decodedSplit, splitRefTx);
+            log("Signed Ticket %d", i);
+            log(signed);
+        }
+    }),
 
     togglePublishTxs: () => {
         publishTxs = !publishTxs;

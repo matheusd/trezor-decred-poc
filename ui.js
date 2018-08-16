@@ -37,6 +37,7 @@ var uiActions = {
     reloadDeviceList: null,
     validateAddress: null,
     importScript: null,
+    purchaseTickets: null,
 
     switchLog: () => {
         debugLogger.toggle();
@@ -189,6 +190,7 @@ export function buildUI(actions) {
         { label: "show features", keys: ["f"], callback: tryAction("showFeatures") },
         { label: "sign message", keys: ["b"], callback: tryAction("signMessage") },
         { label: "sign transaction", keys: ["t"], callback: tryAction("signTransaction") },
+        { label: "purchase tickets", keys: ["x"], callback: tryAction("purchaseTickets") },
         { label: "clear session", keys: ["c"], callback: tryAction("clearSession") },
         { label: "import wallet script", keys: ["C-u"], callback: tryAction("importScript") },
         { label: "wipe device", keys: ["C-w"], callback: tryAction("wipeDevice") },

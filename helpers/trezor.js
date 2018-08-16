@@ -38,7 +38,7 @@ export function pathDefinition2path(path) {
 // walletTxToBtcjsTx converts a tx decoded by the decred wallet (ie,
 // returned from the decodeRawTransaction call) into a bitcoinjs-compatible
 // transaction (to be used in trezor)
-export async function walletTxToBtcjsTx(tx, changeIndex, inputTxs, walletSvc) {
+export async function walletTxToBtcjsTx(tx, inputTxs, walletSvc) {
     const inputTxsMap = inputTxs.reduce((m, tx) => {
         m[rawHashToHex(tx.getTransactionHash())] = tx;
         return m;
@@ -88,29 +88,49 @@ export async function walletTxToBtcjsTx(tx, changeIndex, inputTxs, walletSvc) {
 
     const outputs = [];
     for (const outp of tx.getOutputsList()) {
-        if (outp.getAddressesList().length != 1) {
-            // TODO: this will be true on OP_RETURNs. Support those.
-            throw "Output has different number of addresses than expected";
+        const scriptClass = outp.getScriptClass();
+
+        let address_n;
+
+        switch (scriptClass) {
+        case wallet.SCRIPT_CLASSES.STAKE_SUBMISSION:
+        case wallet.SCRIPT_CLASSES.STAKE_SUB_CHANGE:
+        case wallet.SCRIPT_CLASSES.NULL_DATA:
+            outputs.push({
+                amount: outp.getValue(),
+                script_type: "PAYTOOPRETURN",
+                op_return_data: outp.getScript(),
+                address_n: address_n,
+            });
+            break;
+        case wallet.SCRIPT_CLASSES.PUB_KEY_HASH:
+            if (outp.getAddressesList().length != 1) {
+                throw "Output has different number of addresses than expected";
+            }
+
+            let addr = outp.getAddressesList()[0];
+            const addrValidResp = await wallet.validateAddress(walletSvc, addr);
+            if (!addrValidResp.getIsValid()) throw "Not a valid address: " + addr;
+            address_n = null;
+
+            if (addrValidResp.getIsMine()) {
+                const addrIndex = addrValidResp.getIndex();
+                const addrBranch = addrValidResp.getIsInternal() ? 1 : 0;
+                address_n = addressPath(addrIndex, addrBranch);
+                addr = null;
+            }
+
+            outputs.push({
+                amount: outp.getValue(),
+                script_type: "PAYTOADDRESS",
+                address: addr,
+                address_n: address_n,
+                opReturnData: null,
+            });
+            break;
+        default:
+            throw "Script class does not support signing: " + scriptClass;
         }
-
-        const addr = outp.getAddressesList()[0];
-        const addrValidResp = await wallet.validateAddress(walletSvc, addr);
-        if (!addrValidResp.getIsValid()) throw "Not a valid address: " + addr;
-        let address_n = null;
-
-        if (outp.getIndex() === changeIndex) {
-            const addrIndex = addrValidResp.getIndex();
-            const addrBranch = addrValidResp.getIsInternal() ? 1 : 0;
-            address_n = addressPath(addrIndex, addrBranch);
-            addr = null;
-        }
-
-        outputs.push({
-            amount: outp.getValue(),
-            script_type: "PAYTOADDRESS", // needs to change on OP_RETURNs
-            address: addr,
-            address_n: address_n,
-        });
     }
 
     const txInfo = {

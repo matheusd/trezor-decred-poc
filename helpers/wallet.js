@@ -1,6 +1,8 @@
 import { strHashToRaw, rawHashToHex, hexToRaw } from "./bytes";
 import * as pb from "../dcrwallet-api/api_pb";
 
+export const SCRIPT_CLASSES = pb.DecodedTransaction.Output.ScriptClass;
+
 export const getTransaction = (walletService, txHash) =>
   new Promise((resolve, reject) => {
     var request = new pb.GetTransactionRequest();
@@ -104,4 +106,29 @@ export const importScript = (walletService, passphrase, script, rescan, scanFrom
     request.setScanFrom(scanFrom);
     request.setRequireRedeemable(true);
     walletService.importScript(request, (err, res) => err ? fail(err) : ok(res));
+  });
+
+export const bestBlock = (walletService) =>
+  new Promise((ok, fail) => {
+    const request = new pb.BestBlockRequest();
+    walletService.bestBlock(request, (err, res) => err ? fail(err) : ok(res));
+  });
+
+export const purchaseTickets = (
+    walletService, passphrase, accountNum, spendLimit, requiredConf, numTickets, expiry, ticketFee,
+    txFee, stakepool
+  ) => new Promise((ok, fail) => {
+    const request = new pb.PurchaseTicketsRequest();
+    request.setPassphrase(new Uint8Array(Buffer.from(passphrase)));
+    request.setAccount(accountNum);
+    request.setSpendLimit(spendLimit);
+    request.setRequiredConfirmations(requiredConf);
+    request.setTicketAddress(stakepool.TicketAddress);
+    request.setNumTickets(numTickets);
+    request.setPoolAddress(stakepool.PoolAddress);
+    request.setPoolFees(stakepool.PoolFees);
+    request.setExpiry(expiry);
+    request.setTxFee(txFee);
+    request.setTicketFee(ticketFee);
+    walletService.purchaseTickets(request, (err, res) => err ? fail(err) : ok(res));
   });
