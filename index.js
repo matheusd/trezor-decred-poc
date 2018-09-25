@@ -219,7 +219,7 @@ const uiActions = {
     }),
 
     signTransaction: () => currentDevice().run(async session => {
-        const destAddress = await ui.queryInput("Destination Address");
+        const destAddress = await ui.queryInput("Destination Address", "TsfDLrRkk9ciUuwfp2b8PawwnukYD7yAjGd");
         if (!destAddress) return;
 
         const destAmount = await ui.queryInput("Amount (in DCR)");
@@ -231,7 +231,7 @@ const uiActions = {
 
         const output = { destination: destAddress, amount: Math.floor(destAmount * 1e8)}
 
-        const rawUnsigTxResp = await wallet.constructTransaction(wsvc, 0, 1, [output])
+        const rawUnsigTxResp = await wallet.constructTransaction(wsvc, 0, 0, [output])
         log("Got raw unsiged tx");
         const rawUnsigTx = rawToHex(rawUnsigTxResp.res.getUnsignedTransaction());
         debugLog("Raw unsigned tx hex follows");
@@ -254,7 +254,7 @@ const uiActions = {
         log("Successfully signed tx");
 
         if (!publishTxs) {
-            log("Raw hex tx follows.");
+            log("Raw signed hex tx follows.");
             log(signedRaw);
             return;
         }
