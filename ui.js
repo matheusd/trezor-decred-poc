@@ -14,6 +14,7 @@ var txtActiveDevice;
 var txtPublishTxs;
 var pinBox;
 var logFile = fs.createWriteStream("log.txt", {flags:'a'});
+var debugFile = fs.createWriteStream("debug.txt", {flags:'a'});
 
 var uiActions = {
     listDevices: null,
@@ -50,9 +51,12 @@ var uiActions = {
     },
 };
 
-export function queryInput(msg) {
+export function queryInput(msg, initialValue) {
     inputLine.setLabel(msg);
     inputLine.clearValue();
+    if (initialValue) {
+        inputLine.setValue(initialValue);
+    }
     inputLine.show();
     inputLine.focus();
     inputLine.enableInput();
@@ -384,4 +388,6 @@ export function log(format, ...args) {
 
 export function debugLog(format, ...args) {
     logTo(debugLogger, format, ...args);
+    debugFile.write(sprintf(format, ...args));
+    debugFile.write("\n");
 }

@@ -46,7 +46,6 @@ export async function walletTxToBtcjsTx(tx, changeIndex, inputTxs, walletSvc) {
 
     const inputs = [];
     for (const inp of tx.getInputsList()) {
-        console.log("a2");
         const inputTx = inputTxsMap[rawHashToHex(inp.getPreviousTransactionHash())];
         if (!inputTx) throw "Cannot sign transaction without knowing source tx " +
             rawHashToHex(inp.getPreviousTransactionHash());
@@ -79,10 +78,7 @@ export async function walletTxToBtcjsTx(tx, changeIndex, inputTxs, walletSvc) {
             amount: inp.getAmountIn(),
             sequence: inp.getSequence(),
             address_n: addressPath(addrIndex, addrBranch),
-
-            // FIXME: this needs to be supported on trezor.js.
-            // decredTree: inp.getTree(),
-            // decredScriptVersion: 0,
+            decred_tree: inp.getTree(),
         });
     }
 
@@ -110,6 +106,7 @@ export async function walletTxToBtcjsTx(tx, changeIndex, inputTxs, walletSvc) {
             script_type: "PAYTOADDRESS", // needs to change on OP_RETURNs
             address: addr,
             address_n: address_n,
+            decred_script_version: outp.getVersion(),
         });
     }
 
@@ -131,16 +128,16 @@ export function walletTxToRefTx(tx) {
         amount: inp.getAmountIn(),
         prev_hash: rawHashToHex(inp.getPreviousTransactionHash()),
         prev_index: inp.getPreviousTransactionIndex(),
-
-        // TODO: this needs to be supported on trezor.js
-        // decredTree: inp.getTree(),
-        // decredScriptVersion: 0,
+        script_sig: inp.getSignatureScript(),
+        decred_tree: inp.getTree(),
     }));
 
     const bin_outputs = tx.getOutputsList().map(outp => ({
         amount: outp.getValue(),
         script_pubkey: rawToHex(outp.getScript()),
+        decred_script_version: outp.getVersion(),
     }));
+    
     const txInfo = {
         hash: rawHashToHex(tx.getTransactionHash()),
         lock_time: tx.getLockTime(),
