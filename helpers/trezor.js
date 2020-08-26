@@ -72,14 +72,15 @@ export async function walletTxToBtcjsTx(tx, changeIndex, inputTxs, walletSvc) {
 
         const addrIndex = addrValidResp.getIndex();
         const addrBranch = addrValidResp.getIsInternal() ? 1 : 0;
-        inputs.push({
+        const pushIt = {
             prev_hash: rawHashToHex(inp.getPreviousTransactionHash()),
             prev_index: inp.getPreviousTransactionIndex(),
-            amount: inp.getAmountIn(),
+            amount: inp.getAmountIn().toString(),
             sequence: inp.getSequence(),
             address_n: addressPath(addrIndex, addrBranch),
             decred_tree: inp.getTree(),
-        });
+        }
+        inputs.push(pushIt);
     }
 
     const outputs = [];
@@ -100,22 +101,25 @@ export async function walletTxToBtcjsTx(tx, changeIndex, inputTxs, walletSvc) {
             address_n = addressPath(addrIndex, addrBranch);
             addr = null;
         }
-
-        outputs.push({
-            amount: outp.getValue(),
+        const pushIt = {
+            amount: outp.getValue().toString(),
             script_type: "PAYTOADDRESS", // needs to change on OP_RETURNs
-            address: addr,
-            address_n: address_n,
-            decred_script_version: outp.getVersion(),
-        });
+        }
+        if (address_n) {
+          pushIt.address_n = address_n
+        } else {
+          pushIt.address = addr
+        }
+
+        outputs.push(pushIt);
     }
 
     const txInfo = {
         lock_time: tx.getLockTime(),
         version: tx.getVersion(),
         expiry: tx.getExpiry(),
-        inputs,
-        outputs
+        inputs: inputs,
+        outputs: outputs
     };
 
     return txInfo;
