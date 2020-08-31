@@ -350,15 +350,38 @@ function setDeviceListeners() {
         break;
     }
   })
-  session.on(UI_EVENT, (event) => {
+  session.on(UI_EVENT, async (event) => {
     const type = event.type
     switch (type) {
       case UI.REQUEST_CONFIRMATION:
         if (event.payload.view == NOBACKUP) {
         log("Device must be backed up to perform this operation.")
-          sessoin.uiResponse({
+          session.uiResponse({
             type: UI.RECEIVE_CONFIRMATION,
             payload: False,
+          })
+        }
+      break;
+      case UI.REQUEST_PASSPHRASE:
+        log("passphrase requested")
+        try {
+          const inp = await ui.queryInput("Type the passphrase")
+          session.uiResponse({
+            type: UI.RECEIVE_PASSPHRASE,
+            payload: {
+              value: inp,
+              save: true
+            }
+          })
+        } catch (error) {
+          log("Error waiting for passphrase: %s", error)
+          session.uiResponse({
+            type: UI.RECEIVE_PASSPHRASE,
+            payload: {
+              value: '',
+              passphraseOnDevice: true,
+              save: true
+            }
           })
         }
       break;
