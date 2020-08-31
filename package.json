@@ -14,7 +14,6 @@
     "grpc": "^1.13.0-pre1",
     "grpc-tools": "^1.6.6",
     "sprintf-js": "^1.1.1",
-    "trezor-connect": "file:../connect/npm-extended/",
-    "trezor.js": "^6.18.2"
+    "trezor-connect": "file:../connect/npm-extended/"
   }
 }
