@@ -105,3 +105,22 @@ export const importScript = (walletService, passphrase, script, rescan, scanFrom
     request.setRequireRedeemable(true);
     walletService.importScript(request, (err, res) => err ? fail(err) : ok(res));
   });
+
+export const ticketPrice = (walletService) =>
+  new Promise((resolve, reject) => {
+    const request = new pb.TicketPriceRequest();
+    walletService.ticketPrice(request, (error, response) => error ? reject(error) : resolve(response));
+  });
+
+export const balance = (walletService, confirms) =>
+  new Promise((resolve, reject) => {
+    const request = new pb.BalanceRequest();
+    request.setRequiredConfirmations(confirms)
+    walletService.balance(request, (error, response) => error ? reject(error) : resolve(response));
+  });
+
+export const bestBlock = (walletService) =>
+  new Promise((resolve, reject) => {
+    const request = new pb.BestBlockRequest();
+    walletService.bestBlock(request, (error, response) => error ? reject(error) : resolve(response));
+  });
