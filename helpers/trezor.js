@@ -2,6 +2,7 @@ import * as wallet from "./wallet";
 import { rawHashToHex, rawToHex } from "./bytes";
 import { networks, address } from "@trezor/utxo-lib";
 
+
 const Buffer = require('safe-buffer').Buffer
 
 const hardeningConstant = 0x80000000;
@@ -103,6 +104,7 @@ export async function walletTxToBtcjsTx(tx, changeIndex, inputTxs, walletSvc) {
             sequence: inp.getSequence(),
             address_n: addressPath(addrIndex, addrBranch),
             decred_tree: inp.getTree(),
+            script_type: "SPENDADDRESS",
         }
         inputs.push(pushIt);
     }
@@ -209,7 +211,7 @@ export function stakePoolTicketFee(stakeDiff, relayFee, height, poolFee) {
   // pool size (netParams.TicketPoolSize), so take the
   // ceiling of the ticket pool size divided by the
   // reduction interval.
-  const adjs = Math.ceil(simnetTicketPoolSize / simnetSubsidyReductionInterval)
+  const adjs = Math.ceil(testnetTicketPoolSize / testnetSubsidyReductionInterval)
   console.log("adjs", adjs)
   var subsidy = calcStakeVoteSubsidy(height)
   for (const _ of Array(adjs).keys()) {
@@ -228,9 +230,7 @@ export function stakePoolTicketFee(stakeDiff, relayFee, height, poolFee) {
   num *= BigInt(s)
   const vPlusZ = v + z
   num *= BigInt(vPlusZ)
-  console.log("num", num)
   num = num << shift
-  console.log("num", num)
 
   // The denominator is 10000*(s+v).
   // The extra 10000 above cancels out.
@@ -264,9 +264,9 @@ function calcStakeVoteSubsidy(height) {
   // proportion.  Then divide it by the number of votes per block to arrive
   // at the amount per vote.
   var subsidy = calcBlockSubsidy(height)
-  const proportions = simnetWorkRewardProportion + simnetStakeRewardProportion + simnetBlockTaxProportion
-  subsidy *= simnetStakeRewardProportion
-  subsidy = Math.floor(subsidy / (proportions * simnetTicketsPerBlock))
+  const proportions = testnetWorkRewardProportion + testnetStakeRewardProportion + testnetBlockTaxProportion
+  subsidy *= testnetStakeRewardProportion
+  subsidy = Math.floor(subsidy / (proportions * testnetTicketsPerBlock))
 
   return subsidy
 }
@@ -277,10 +277,10 @@ function calcStakeVoteSubsidy(height) {
 function calcBlockSubsidy(height) {
   // Calculate the subsidy by applying the appropriate number of
   // reductions per the starting and requested interval.
-  const reductionMultiplier = simnetMulSubsidy
-  const reductionDivisor = simnetDivSubsidy
-  var subsidy = simnetBaseSubsidy
-  const neededIntervals = Math.floor(height / simnetSubsidyReductionInterval)
+  const reductionMultiplier = testnetMulSubsidy
+  const reductionDivisor = testnetDivSubsidy
+  var subsidy = testnetBaseSubsidy
+  const neededIntervals = Math.floor(height / testnetSubsidyReductionInterval)
   for (const _ of Array(neededIntervals).keys()) {
     subsidy *= reductionMultiplier
     subsidy = Math.floor(subsidy / reductionDivisor)
@@ -291,19 +291,32 @@ function calcBlockSubsidy(height) {
   return subsidy
 }
 
-export function makeCommitmentPush(addr, price, isP2SH) {
-  const pkh = address.fromBase58Check(addr, networks.decredSim).hash
-  const b = Buffer.alloc(30)
-  pkh.copy(b, 0)
-  b.writeUInt8(price&0xFF, 20)
-  b.writeUInt8((price>>8)&0xFF, 21)
-  b.writeUInt8((price>>16)&0xFF, 22)
-  b.writeUInt8(price>>24, 23)
-  b.writeUInt8(58, 29)
-  if (isP2SH) b[27] |= 1 << 7
-  return b.toString('hex')
+// zeroAddr returns an address with a pkh of zeros. It is used as SSTXCHANGE.
+export function zeroAddr() {
+  const b = Buffer.alloc(20)
+  const addr = address.toBase58Check(b, networks.decredTest.pubKeyHash, networks.decredTest)
+  return addr
 }
 
-export function random32() {
-  return Math.floor(Math.random() << 32)
+// sstxcommitment creates an op return script for stake commitments that assigns
+// price to addr.
+export function sstxcommitment(addr, price, isP2SH) {
+  const pkh = address.fromBase58Check(addr, networks.decredTest).hash
+  const b = Buffer.alloc(30)
+  pkh.copy(b, 0)
+  const big = BigInt
+  const num = Number
+  const p = big(price)
+  const ff = big(0xFF)
+  b.writeUInt8(num(p&ff), 20)
+  b.writeUInt8(num((p>>big(8))&ff), 21)
+  b.writeUInt8(num((p>>big(16))&ff), 22)
+  b.writeUInt8(num((p>>big(24))&ff), 23)
+  b.writeUInt8(num((p>>big(32))&ff), 24)
+  b.writeUInt8(num((p>>big(40))&ff), 25)
+  b.writeUInt8(num((p>>big(48))&ff), 26)
+  b.writeUInt8(num((p>>big(56))&ff), 27)
+  b.writeUInt8(0x58, 29)
+  if (isP2SH) b[27] |= 1 << 7
+  return b.toString('hex')
 }

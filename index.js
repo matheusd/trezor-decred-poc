@@ -19,9 +19,9 @@ const CHANGE = 'device-changed'
 const DISCONNECT = 'device-disconnect'
 const AQUIRED = 'acquired'
 const NOBACKUP = 'no-backup'
-const coin = "Decred Simnet";
+const coin = "Decred Testnet";
 const coinNetwork = networks.decred;
-const walletCredentials = WalletCredentials("127.0.0.1", 19558,
+const walletCredentials = WalletCredentials("127.0.0.1", 19576,
     "/home/joe/dcrtesting/rpc.cert");
 // const walletCredentials = WalletCredentials("127.0.0.1", 19121,
     // "/home/user/.config/decrediton/wallets/testnet/trezor/rpc.cert");
@@ -204,8 +204,7 @@ const uiActions = {
 
     signTransaction: async () => {
       if (noDevice()) return
-      const destAddress = await ui.queryInput("Destination Address", "SsWEd6y4mQxpQC9SS2yKQp6ZgWh2prstYYW");
-      //const destAddress = await ui.queryInput("Destination Address", "TsaT2QRgtJe5DnSzHfMEu65qzpfMEVGABmd");
+      const destAddress = await ui.queryInput("Destination Address", "TsaT2QRgtJe5DnSzHfMEu65qzpfMEVGABmd");
       if (!destAddress) return;
 
       const destAmount = await ui.queryInput("Amount (in DCR)");
@@ -255,62 +254,71 @@ const uiActions = {
       log("Published tx", txHash);
     },
 
-    purchaseTicket: async () => {
+    purchasePoolTicket: async () => {
       if (noDevice()) return
+      if (!publishTxs) {
+          log("Tx publishing must be enabled to purchase a ticket.");
+          return;
+      }
       const wsvc = await InitService(services.WalletServiceClient, walletCredentials);
       const decodeSvc = await InitService(services.DecodeMessageServiceClient, walletCredentials);
       let res = await wallet.ticketPrice(wsvc)
       var price = res.array[0]
       res = await wallet.balance(wsvc, 0)
       const availBal = res.array[1]
-      // const relayFee = 2980 // private P2PKH
-      const relayFee = 5440 // pool P2SH
+      // relayFee based on the expected size of the script.
+      const relayFee = 5420 // pool
       const totalPrice = price + relayFee
       res = await wallet.bestBlock(wsvc)
       const height = res.array[0]
-      var poolFee = 0
-      poolFee = trezorHelpers.stakePoolTicketFee(price, relayFee, height, 0.5)
+      const poolFeePercentStr = await ui.queryInput("Pool Fee", "0.5");
+      const poolFeePercent = parseFloat(poolFeePercentStr)
+      log(poolFeePercent)
+      const poolFee = trezorHelpers.stakePoolTicketFee(price, relayFee, height, poolFeePercent)
       log("Balance:", availBal/1e8)
       log("Ticket price:", totalPrice/1e8);
       log("Pool fee:", poolFee/1e8);
       if (totalPrice + poolFee > availBal) {
         log("Not enough funds to purchase a ticket.")
+        return
       }
-      if (!publishTxs) {
-          log("Tx publishing must be enabled to purchase a ticket.");
-          return;
-      }
+      const multiSig = await ui.queryInput("Pool Multisig Address", "TcZG7iimLA4MgT4aqG8BS9Tg6efq8gaivdo");
+      const poolFeeAddr = await ui.queryInput("Pool Fee Address", "TsbkyRMpZ11mvsNCU7rFtwM1VVwYQvPNkkM");
       const ticketPortion = totalPrice - poolFee
       async function addr(address_n) {
-        var resp = await session.getAddress({
-          path: ticketAddress_n,
+        var res = await session.getAddress({
+          path: address_n,
           coin: coin,
           showOnTrezor: false
         });
-        return resp.payload.address
+        return res.payload.address
       }
-      const ticketN = trezorHelpers.random32()
-      const poolN = trezorHelpers.random32()
-      const ticketAddress_n = trezorHelpers.addressPath(0, ticketN);
-      const poolAddress_n = trezorHelpers.addressPath(0, poolN);
+      // TODO: Taking the next unused address would be prefered. Should use
+      // dcrwallet here to do that. We also need the index.
+      const ticketN = 1
+      const poolN = 2
+      const ticketAddress_n = trezorHelpers.addressPath(ticketN, 0);
+      const poolAddress_n = trezorHelpers.addressPath(poolN, 0);
       const returnAddress_n = trezorHelpers.addressPath(0, 0);
       const ticketAddr = await addr(ticketAddress_n)
       const poolAddr = await addr(poolAddress_n)
       const returnAddr = await addr(returnAddress_n)
-      const zeroAddr = "SsUMGgvWLcixEeHv3GT4TGYyez4kY79RHth"
-      const multiSig = "ScmZMV66BUqW1kDEDoTfjL9SDoctDDaCTgA"
-      const poolFeeAddr = "Ssge52jCzbixgFC736RSTrwAnvH3a4hcPRX"
-
-      const ticketInputTxHash = await sendToAddr(ticketAddr, ticketPortion)
-      log(ticketInputTxHash)
-      const poolInputTxHash = await sendToAddr(poolAddr, poolFee)
-      log(poolInputTxHash)
-      const ticketInp = await wallet.getTransaction(wsvc, ticketInputTxHash)
-      const decodedTicketInp = await wallet.decodeTransaction(decodeSvc, ticketInp.getTransaction());
-      const poolInp = await wallet.getTransaction(wsvc, poolInputTxHash)
-      const decodedPoolInp = await wallet.decodeTransaction(decodeSvc, poolInp.getTransaction());
-      const refTxs = [decodedTicketInp, decodedPoolInp].map(trezorHelpers.walletTxToRefTx);
-      function findOut(decodedInp, amt) {
+      const zeroAddr = trezorHelpers.zeroAddr()
+      // Create split transactions to fund tickets.
+      const outpoints = [{
+        addr: ticketAddr,
+        amt: ticketPortion
+      },{
+        addr: poolAddr,
+        amt: poolFee
+      }]
+      const inputTxHash = await sendToAddrs(outpoints)
+      const inp = await wallet.getTransaction(wsvc, inputTxHash)
+      const decodedInp = await wallet.decodeTransaction(decodeSvc, inp.getTransaction());
+      const refTxs = [decodedInp].map(trezorHelpers.walletTxToRefTx);
+      // The outputs seem to be randomized. Find the one we want to use by
+      // checking for the correct amount.
+      function findOut(amt) {
         var outs = decodedInp.array[6]
         var outputN = 0
         for (var i = 0; i < outs.length; i++) {
@@ -323,23 +331,21 @@ const uiActions = {
         if (outputN == null) outputN = 0
         return outputN
       }
-      const ticketInput = {
-        address_n: ticketAddress_n,
-        prev_hash: ticketInputTxHash,
-        prev_index: findOut(decodedTicketInp, ticketPortion),
-      }
       const poolInput = {
         address_n: poolAddress_n,
-        prev_hash: poolInputTxHash,
-        prev_index: findOut(decodedPoolInp, poolFee),
+        prev_hash: inputTxHash,
+        prev_index: findOut(poolFee),
       }
-      const ticketOPreturn = trezorHelpers.makeCommitmentPush(returnAddr, ticketPortion, true)
-      log(ticketOPreturn)
-      const poolOPreturn = trezorHelpers.makeCommitmentPush(poolFeeAddr, poolFee, false)
-
+      const ticketInput = {
+        address_n: ticketAddress_n,
+        prev_hash: inputTxHash,
+        prev_index: findOut(ticketPortion),
+      }
+      const poolOPreturn = trezorHelpers.sstxcommitment(poolFeeAddr, poolFee, false)
+      const ticketOPreturn = trezorHelpers.sstxcommitment(returnAddr, ticketPortion, false)
       const sstxsubmission = {
           address: multiSig,
-          script_type: 'SSTXSUBMISSION',
+          script_type: 'SSTXSUBMISSIONSH',
           amount: price.toString()
       }
       const poolsstxcommitment = {
@@ -374,6 +380,108 @@ const uiActions = {
 
       const signedRaw = res.payload.serializedTx;
       log("Successfully signed tx");
+
+      const txHash = await wallet.publishTransaction(wsvc, signedRaw);
+      log("Published ticket", txHash);
+    },
+
+    purchaseSoloTicket: async () => {
+      if (noDevice()) return
+      const wsvc = await InitService(services.WalletServiceClient, walletCredentials);
+      const decodeSvc = await InitService(services.DecodeMessageServiceClient, walletCredentials);
+      let res = await wallet.ticketPrice(wsvc)
+      var price = res.array[0]
+      res = await wallet.balance(wsvc, 0)
+      const availBal = res.array[1]
+      // relayFee based on the expected size of the script.
+      const relayFee = 2980 // solo p2pkh
+      const totalPrice = price + relayFee
+      log("Balance:", availBal/1e8)
+      log("Ticket price:", totalPrice/1e8);
+      if (totalPrice > availBal) {
+        log("Not enough funds to purchase a ticket.")
+        return
+      }
+      if (!publishTxs) {
+          log("Tx publishing must be enabled to purchase a ticket.");
+          return;
+      }
+      const votingPKH = await ui.queryInput("Voting Address of hot wallet", "TsWZg73dXnmqnkBo8o3coNoKSEWZvV4Jfxi");
+      async function addr(address_n) {
+        var res = await session.getAddress({
+          path: address_n,
+          coin: coin,
+          showOnTrezor: false
+        });
+        return res.payload.address
+      }
+      // TODO: Taking the next unused address would be prefered. Should use
+      // dcrwallet here to do that. We also need the index.
+      const ticketN = 1
+      const ticketAddress_n = trezorHelpers.addressPath(ticketN, 0);
+      const returnAddress_n = trezorHelpers.addressPath(0, 0);
+      const ticketAddr = await addr(ticketAddress_n)
+      const returnAddr = await addr(returnAddress_n)
+      const zeroAddr = trezorHelpers.zeroAddr()
+      // Create split transactions to fund tickets.
+      const outpoints = [{
+        addr: ticketAddr,
+        amt: totalPrice
+      }]
+      const inputTxHash = await sendToAddrs(outpoints)
+      const inp = await wallet.getTransaction(wsvc, inputTxHash)
+      const decodedInp = await wallet.decodeTransaction(decodeSvc, inp.getTransaction());
+      const refTxs = [decodedInp].map(trezorHelpers.walletTxToRefTx);
+      // The outputs seem to be randomized. Find the one we want to use by
+      // checking for the correct amount.
+      function findOut(amt) {
+        var outs = decodedInp.array[6]
+        var outputN = 0
+        for (var i = 0; i < outs.length; i++) {
+          const out = outs[i]
+          if (out[0] == amt) {
+            outputN = out[1]
+            break
+          }
+        }
+        if (outputN == null) outputN = 0
+        return outputN
+      }
+      const ticketInput = {
+        address_n: ticketAddress_n,
+        prev_hash: inputTxHash,
+        prev_index: findOut(totalPrice),
+      }
+      const ticketOPreturn = trezorHelpers.sstxcommitment(returnAddr, totalPrice, false)
+      const sstxsubmission = {
+          address: votingPKH,
+          script_type: 'SSTXSUBMISSIONPKH',
+          amount: price.toString()
+      }
+      const ticketsstxcommitment = {
+          script_type: 'PAYTOOPRETURN',
+          op_return_data: ticketOPreturn,
+          amount: "0"
+      }
+      const ticketsstxchange = {
+          address: zeroAddr,
+          script_type: 'SSTXCHANGE',
+          amount: "0"
+      }
+      const inputs = [ticketInput]
+      const outputs = [sstxsubmission, ticketsstxcommitment, ticketsstxchange]
+
+      res = await session.signTransaction({
+        coin: coin,
+        inputs: inputs,
+        outputs: outputs,
+        refTxs: refTxs,
+      });
+
+      const signedRaw = res.payload.serializedTx;
+      log("Successfully signed tx");
+      log(res.payload)
+      log(signedRaw)
 
       const txHash = await wallet.publishTransaction(wsvc, signedRaw);
       log("Published ticket", txHash);
@@ -514,12 +622,17 @@ function setDeviceListeners() {
   })
 }
 
-async function sendToAddr(addr, amt) {
+async function sendToAddrs(outpoints) {
   const wsvc = await InitService(services.WalletServiceClient, walletCredentials);
   const decodeSvc = await InitService(services.DecodeMessageServiceClient, walletCredentials);
 
-  const output = { destination: addr, amount: amt}
-  const rawUnsigTxResp = await wallet.constructTransaction(wsvc, 0, 0, [output])
+  const outputs = []
+  for (var i = 0; i < outpoints.length; i++) {
+    const out = outpoints[i]
+    const output = { destination: out.addr, amount: out.amt}
+    outputs.push(output)
+  }
+  const rawUnsigTxResp = await wallet.constructTransaction(wsvc, 0, 0, outputs)
   log("Got raw unsiged tx");
   const rawUnsigTx = rawToHex(rawUnsigTxResp.res.getUnsignedTransaction());
   debugLog("Raw unsigned tx hex follows");
@@ -537,6 +650,29 @@ async function sendToAddr(addr, amt) {
       rawUnsigTxResp.res.getChangeIndex(), inputTxs, wsvc);
   const refTxs = inputTxs.map(trezorHelpers.walletTxToRefTx);
   log("Going to sign tx on trezor");
+  // Determine if this is paying from a stakebase or revocation, which are
+  // special cases.
+  for (i = 0; i < txInfo.inputs.length; i++) {
+    const input = txInfo.inputs[i]
+    for (i = 0; i < refTxs.length; i++) {
+      const ref = refTxs[i]
+      if (ref.hash && ref.hash == input.prev_hash) {
+        var s = ref.bin_outputs[input.prev_index].script_pubkey
+        if (s.length > 1) {
+          s = s.slice(0, 2)
+          switch (s) {
+            case "bc":
+              input.script_type = "SPENDSSRTX"
+              break
+            case "bb":
+              input.script_type = "SPENDSSGEN"
+              break
+          }
+        }
+        break
+      }
+    }
+  }
   const signedResp = await session.signTransaction({
     coin: coin,
     inputs: txInfo.inputs,
