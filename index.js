@@ -335,11 +335,13 @@ const uiActions = {
         address_n: poolAddress_n,
         prev_hash: inputTxHash,
         prev_index: findOut(poolFee),
+        amount: poolFee.toString(),
       }
       const ticketInput = {
         address_n: ticketAddress_n,
         prev_hash: inputTxHash,
         prev_index: findOut(ticketPortion),
+        amount: ticketPortion.toString(),
       }
       const poolOPreturn = trezorHelpers.sstxcommitment(poolFeeAddr, poolFee, false)
       const ticketOPreturn = trezorHelpers.sstxcommitment(returnAddr, ticketPortion, false)
@@ -451,6 +453,7 @@ const uiActions = {
         address_n: ticketAddress_n,
         prev_hash: inputTxHash,
         prev_index: findOut(totalPrice),
+        amount: totalPrice.toString()
       }
       const ticketOPreturn = trezorHelpers.sstxcommitment(returnAddr, totalPrice, false)
       const sstxsubmission = {
@@ -480,7 +483,6 @@ const uiActions = {
 
       const signedRaw = res.payload.serializedTx;
       log("Successfully signed tx");
-      log(res.payload)
       log(signedRaw)
 
       const txHash = await wallet.publishTransaction(wsvc, signedRaw);

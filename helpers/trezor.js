@@ -115,9 +115,8 @@ export async function walletTxToBtcjsTx(tx, changeIndex, inputTxs, walletSvc) {
             // TODO: this will be true on OP_RETURNs. Support those.
             throw "Output has different number of addresses than expected";
         }
-
         const addr = outp.getAddressesList()[0];
-        const addrValidResp = await wallet.validateAddress(walletSvc, addr);
+        var addrValidResp = await wallet.validateAddress(walletSvc, addr);
         if (!addrValidResp.getIsValid()) throw "Not a valid address: " + addr;
         let address_n = null;
 
@@ -155,15 +154,16 @@ export async function walletTxToBtcjsTx(tx, changeIndex, inputTxs, walletSvc) {
 // RefTransaction object to be used with SignTx.
 export function walletTxToRefTx(tx) {
     const inputs = tx.getInputsList().map(inp => ({
-        amount: inp.getAmountIn(),
+        amount: inp.getAmountIn().toString(),
         prev_hash: rawHashToHex(inp.getPreviousTransactionHash()),
         prev_index: inp.getPreviousTransactionIndex(),
         script_sig: inp.getSignatureScript(),
         decred_tree: inp.getTree(),
+        sequence: inp.getSequence(),
     }));
 
     const bin_outputs = tx.getOutputsList().map(outp => ({
-        amount: outp.getValue(),
+        amount: outp.getValue().toString(),
         script_pubkey: rawToHex(outp.getScript()),
         decred_script_version: outp.getVersion(),
     }));
