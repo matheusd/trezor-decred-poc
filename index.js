@@ -210,9 +210,11 @@ const uiActions = {
       const destAmount = await ui.queryInput("Amount (in DCR)");
       if (!destAmount) return;
 
+      var dcr = parseInt(destAmount)
+      dcr *= 1e8
       const outpoints = [{
         addr: destAddress,
-        amt: destAmount
+        amt: dcr.toString()
       }]
       await sendToAddrs(outpoints)
     },
