@@ -24,8 +24,8 @@ export function getCert(certPath) {
 export function WalletCredentials(address, port, certificate) {
   return {
     address: address || "127.0.0.1",
-    port: port || 19121,
-    certificate: certificate || "/home/user/.config/decrediton/wallets/testnet/trezor/rpc.cert",
+    port: port || 19576,
+    certificate: certificate || "/home/joe/dcrtesting/rpc.cert",
   }
 }
 

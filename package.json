@@ -11,10 +11,10 @@
     "babel-cli": "^6.26.0",
     "babel-preset-env": "^1.7.0",
     "blessed": "^0.1.81",
+    "connect": "https://github.com/JoeGruffins/npm-extended-dcr#7347b16a25df7db85d2cc400a43d7ec1a29d0517",
     "google-protobuf": "^3.5.0",
     "grpc": "^1.13.0-pre1",
     "grpc-tools": "^1.6.6",
-    "sprintf-js": "^1.1.1",
-    "trezor-connect": "file:../connect/npm-extended/"
+    "sprintf-js": "^1.1.1"
   }
 }

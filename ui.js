@@ -35,6 +35,7 @@ var uiActions = {
     changeHomeScreen: null,
     validateAddress: null,
     importScript: null,
+    updateFirmware: null,
 
     switchLog: () => {
         debugLogger.toggle();
@@ -193,6 +194,7 @@ export function buildUI(actions) {
         { label: "purchase pool ticket", keys: ["C-p"], callback: tryAction("purchasePoolTicket") },
         { label: "purchase solo ticket", keys: ["S-p"], callback: tryAction("purchaseSoloTicket") },
         { label: "import wallet script", keys: ["C-u"], callback: tryAction("importScript") },
+        { label: "update firmware", keys: ["C-f"], callback: tryAction("updateFirmware") },
         { label: "wipe device", keys: ["C-w"], callback: tryAction("wipeDevice") },
         { label: "recover device", keys: ["C-r"], callback: tryAction("recoverDevice") },
         { label: "init device", keys: ["C-n"], callback: tryAction("initDevice") },

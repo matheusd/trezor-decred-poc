@@ -11,8 +11,8 @@ import { rawToHex, rawHashToHex, reverseHash, str2hex, hex2b64, str2utf8hex } fr
 import { sprintf } from "sprintf-js";
 import { globalCryptoShim } from "./helpers/random";
 
-const session = require('trezor-connect').default;
-const { TRANSPORT_EVENT, UI, UI_EVENT, DEVICE_EVENT, DEVICE, CONNECT } = require('trezor-connect');
+const session = require('connect').default;
+const { TRANSPORT_EVENT, UI, UI_EVENT, DEVICE_EVENT, DEVICE, CONNECT } = require('connect');
 
 // app constants
 const CHANGE = 'device-changed'
@@ -104,6 +104,20 @@ const uiActions = {
       log("Address: %s", addr);
     },
 
+    updateFirmware: async () => {
+      //if (noDevice()) return
+      try {
+        const rawFirmware = fs.readFileSync(firmwareV1Location);
+        const hexFirmware = rawToHex(rawFirmware);
+
+        const res = await session.firmwareUpdate({
+          binary: hexFirmware
+        });
+        log(JSON.stringify(res.payload, null, 2));
+      } catch (error) {
+        log(error);
+      }
+    },
     getMasterPubKey: async () =>  {
       if (noDevice()) return
       const account = parseInt(await ui.queryInput("Account #"));
