@@ -7,13 +7,23 @@
     "dev": "NODE_NO_WARNINGS=1 babel-node index.js"
   },
   "dependencies": {
+    "@trezor/utxo-lib": "../trezor-utxo-lib/",
     "babel-cli": "^6.26.0",
     "babel-preset-env": "^1.7.0",
     "blessed": "^0.1.81",
+    "connect": "https://github.com/JoeGruffins/npm-extended-dcr#dc8849b2cccf1525839f659e881c708a3cfce963",
     "google-protobuf": "^3.5.0",
     "grpc": "^1.13.0-pre1",
     "grpc-tools": "^1.6.6",
     "sprintf-js": "^1.1.1",
-    "trezor-connect": "file:../connect/npm-extended/"
+    "utxo-lib": "https://github.com/JoeGruffins/trezor-utxo-lib#0e6287c2155f9ce5ec63341681a5c94a17832be6"
+  },
+  "devDependencies": {
+    "eslint": "^7.14.0",
+    "eslint-config-standard": "^16.0.2",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-react": "^7.21.5"
   }
 }
