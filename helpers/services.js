@@ -21,11 +21,13 @@ export function getCert(certPath) {
   return (cert);
 }
 
-export function WalletCredentials(address, port, certificate) {
+export function WalletCredentials(address, port, serverCert, clientCert, clientKey) {
   return {
     address: address || "127.0.0.1",
-    port: port || 19121,
-    certificate: certificate || "/home/user/.config/decrediton/wallets/testnet/trezor/rpc.cert",
+    port: port || 19576,
+    serverCert: serverCert || "/home/user/.config/decrediton/wallets/testnet/trezor/rpc.cert",
+    clientCert: clientCert || "/home/user/.config/decrediton/wallets/testnet/trezor/client.pem",
+    clientKey: clientKey || "/home/user/.config/decrediton/wallets/testnet/trezor/client-key.pem",
   }
 }
 
@@ -33,8 +35,7 @@ export function InitService(svcClass, creds) {
   // needed for node.js to use the correct cipher when connecting to dcrwallet
   process.env.GRPC_SSL_CIPHER_SUITES = "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384";
 
-  //var cert = getCert();
-  var sslCreds = grpc.credentials.createSsl(getCert(creds.certificate));
+  var sslCreds = grpc.credentials.createSsl(getCert(creds.serverCert), getCert(creds.clientKey), getCert(creds.clientCert));
   var client = new svcClass(creds.address + ":" + creds.port, sslCreds);
 
   var deadline = new Date();
