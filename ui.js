@@ -28,11 +28,13 @@ var uiActions = {
     changeLabel: null,
     signMessage: null,
     signTransaction: null,
+    purchaseTicketV3: null,
     initDevice: null,
     togglePublishTxs: null,
     changeHomeScreen: null,
     validateAddress: null,
     importScript: null,
+    updateFirmware: null,
 
     switchLog: () => {
         debugLogger.toggle();
@@ -188,7 +190,9 @@ export function buildUI(actions) {
         { label: "sign message", keys: ["s"], callback: tryAction("signMessage") },
         { label: "sign transaction", keys: ["t"], callback: tryAction("signTransaction") },
         { label: "backup device", keys: ["b"], callback: tryAction("backupDevice") },
+        { label: "purchase anonomous pool ticket", keys: ["C-p"], callback: tryAction("purchaseTicketV3") },
         { label: "import wallet script", keys: ["C-u"], callback: tryAction("importScript") },
+        { label: "update firmware", keys: ["C-f"], callback: tryAction("updateFirmware") },
         { label: "wipe device", keys: ["C-w"], callback: tryAction("wipeDevice") },
         { label: "recover device", keys: ["C-r"], callback: tryAction("recoverDevice") },
         { label: "init device", keys: ["C-n"], callback: tryAction("initDevice") },

@@ -105,3 +105,36 @@ export const importScript = (walletService, passphrase, script, rescan, scanFrom
     request.setRequireRedeemable(true);
     walletService.importScript(request, (err, res) => err ? fail(err) : ok(res));
   });
+
+export const purchaseTicketsV3 = (
+  walletService,
+  numTickets,
+  vsp,
+  csppReq
+) => new Promise((resolve, reject) => {
+  const request = new pb.PurchaseTicketsRequest();
+  request.setAccount(0);
+  request.setChangeAccount(0);
+  request.setNumTickets(numTickets);
+  request.setDontSignTx(true);
+  const { pubkey, host } = vsp;
+  request.setVspPubkey(pubkey);
+  request.setVspHost("https://" + host);
+  walletService.purchaseTickets(request, (error, response) => {
+    if (error) {
+      reject(error);
+    }
+  resolve(response);
+  });
+});
+
+export const getVoteChoices = (agendaService) => new Promise((resolve, reject) => {
+  const request = new pb.VoteChoicesRequest();
+  agendaService.voteChoices(request, (error, response) => {
+    if (error) {
+      reject(error);
+    }
+  resolve(response);
+  });
+});
+
