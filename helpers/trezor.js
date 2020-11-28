@@ -1,18 +1,12 @@
 import * as wallet from './wallet'
-import fs from 'fs'
 import { rawHashToHex, rawToHex, hexToRaw } from './bytes'
-import { networks, Transaction, crypto } from 'utxo-lib'
+import { networks, Transaction } from 'utxo-lib'
 import { sprintf } from 'sprintf-js'
 
-const { gunzipSync } = require('zlib')
 const axios = require('axios').default
 
 const hardeningConstant = 0x80000000
 const cointype = 1 // 0 = bitcoin, 42 = decred, 1 = decred testnet
-const firmwareV1Location = './build/legacy/firmware.bin.gz'
-const firmwareV1Sha = '96d610eef13dc8eecafe85559d8b863446ccb2a781b490d320fc216503b87084'
-const firmwareV2Location = './build/core/firmware.bin.gz'
-const firmwareV2Sha = '4cde369a1df6c672f3004fe595f5ffde9d159908421dbf96f31172ffbd506726'
 
 export function addressPath (index, branch) {
   return [
@@ -169,23 +163,6 @@ export function walletTxToRefTx (tx) {
   }
 
   return txInfo
-}
-
-export const getFirmware = async (model) => {
-  let path = firmwareV1Location
-  let wantSha = firmwareV1Sha
-  if (model === 'T') {
-    path = firmwareV2Location
-    wantSha = firmwareV2Sha
-  }
-  const compressedFirmware = fs.readFileSync(path)
-  const firmwareRaw = await gunzipSync(compressedFirmware)
-  const sha = crypto.sha256(firmwareRaw).toString('hex')
-  const context = 'bad sha:\nwanted: ' + wantSha + '\ngot:    ' + sha
-  if (sha !== wantSha) {
-    throw Error(context)
-  }
-  return firmwareRaw
 }
 
 export const conToTrezCoinParams = (coin) => {
