@@ -324,7 +324,8 @@ const uiActions = {
     const features = await session.getFeatures()
     const model = features.payload.model
     try {
-      const rawFirmware = await trezorHelpers.getFirmware(model)
+      const path = await ui.queryInput('Firmware path', '/home/user/firmware.bin')
+      const rawFirmware = fs.readFileSync(path)
       let firmwareData
       // Current models are either 1 or "T".
       if (model === 1) {
