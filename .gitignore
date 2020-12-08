@@ -3,3 +3,4 @@ yarn-error.log
 log.txt
 debug.txt
 package-lock.json
+config.js

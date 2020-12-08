@@ -9,6 +9,17 @@ import { rawToHex, str2utf8hex } from './helpers/bytes'
 import { globalCryptoShim } from './helpers/random'
 import { ECPair } from 'utxo-lib'
 
+// Handle the local config for wallet credentials and vsp config. Copy
+// config.js.sample to config.js and adjust as needed.
+try {
+	require("./config.js");
+} catch (error) {
+	console.log("Create config.js file with the wallet config.")
+	console.log(error);
+	process.exit(1);
+}
+import { default as cfg } from "./config.js";
+
 // app constants
 const session = require('connect').default
 const { TRANSPORT_EVENT, UI, UI_EVENT, DEVICE_EVENT } = require('connect')
@@ -20,9 +31,8 @@ const NOBACKUP = 'no-backup'
 const TRANSPORT_ERROR = 'transport-error'
 const TRANSPORT_START = 'transport-start'
 const coin = 'Decred Testnet'
-const walletCredentials = WalletCredentials('127.0.0.1', 19121,
-  '/home/user/.config/decrediton/wallets/testnet/trezor/rpc.cert', '/home/user/.config/decrediton/wallets/testnet/trezor/client.pem', '/home/user/.config/decrediton/wallets/testnet/trezor/client-key.pem')
-const defaultVSP = { host: 'teststakepool.decred.org', pubkey: 'ia9Ra2Drb+OHLqRyBsJnRKBd7TUG1IvrseC6robKzGo=' }
+const walletCredentials = WalletCredentials(cfg.server, cfg.port,
+  cfg.rpccert, cfg.clientcert, cfg.clientkey)
 
 // helpers
 const log = ui.log
@@ -324,7 +334,7 @@ const uiActions = {
     const features = await session.getFeatures()
     const model = features.payload.model
     try {
-      const path = await ui.queryInput('Firmware path', '/home/user/firmware.bin')
+      const path = await ui.queryInput('Firmware path', cfg.firmwarePath)
       const rawFirmware = fs.readFileSync(path)
       let firmwareData
       // Current models are either 1 or "T".
@@ -427,7 +437,7 @@ const uiActions = {
       const votingAddr = ecp.getAddress()
       // TODO: Add cspp purchasing.
       // TODO: Add multiple ticket purchasing.
-      let res = await wallet.purchaseTicketsV3(wsvc, 1, defaultVSP, {})
+      let res = await wallet.purchaseTicketsV3(wsvc, 1, cfg.vsp, {})
       const splitTx = res.getSplitTx()
       const decodedInp = await wallet.decodeTransaction(
         decodeSvc,
@@ -496,7 +506,7 @@ const uiActions = {
         // Pay fee.
         log('Waiting 5 seconds for the ticket to propogate throughout the network.')
         await new Promise(r => setTimeout(r, 5000))
-        const host = 'https://' + defaultVSP.host
+        const host = 'https://' + cfg.vsp.host
         await trezorHelpers.payVSPFee(wsvc, decodeSvc, votingSvc, host, signedRaw, votingKey, 0, coin, signMessage, signTransaction, log)
         i++
       }

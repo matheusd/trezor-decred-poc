@@ -1,0 +1,13 @@
+export default {
+	"server": "127.0.0.1",
+	"port": 19121,
+	"rpccert": "/home/user/.config/decrediton/wallets/testnet/trezor-no-pwd/rpc.cert",
+	"clientcert": "/home/user/.config/decrediton/wallets/testnet/trezor-no-pwd/client.cert",
+	"clientkey": "/home/user/.config/decrediton/wallets/testnet/trezor-no-pwd/client.key",
+	"vsp": {
+		"host": "teststakepool.decred.org",
+		"pubkey": "ia9Ra2Drb+OHLqRyBsJnRKBd7TUG1IvrseC6robKzGo="
+	},
+	"firmwarePath": "/home/user/Downloads/trezor-firmware.bin"
+}
+

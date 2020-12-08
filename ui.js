@@ -190,7 +190,7 @@ export function buildUI(actions) {
         { label: "sign message", keys: ["s"], callback: tryAction("signMessage") },
         { label: "sign transaction", keys: ["t"], callback: tryAction("signTransaction") },
         { label: "backup device", keys: ["b"], callback: tryAction("backupDevice") },
-        { label: "purchase anonomous pool ticket", keys: ["C-p"], callback: tryAction("purchaseTicketV3") },
+        { label: "purchase pool ticket", keys: ["C-p"], callback: tryAction("purchaseTicketV3") },
         { label: "import wallet script", keys: ["C-u"], callback: tryAction("importScript") },
         { label: "update firmware", keys: ["C-f"], callback: tryAction("updateFirmware") },
         { label: "wipe device", keys: ["C-w"], callback: tryAction("wipeDevice") },
