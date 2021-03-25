@@ -139,7 +139,6 @@ export async function walletTxToBtcjsTx (tx, changeIndexes, inputTxs, walletSvc)
 // RefTransaction object to be used with SignTx.
 export function walletTxToRefTx (tx) {
   const inputs = tx.getInputsList().map(inp => ({
-    amount: inp.getAmountIn().toString(),
     prev_hash: rawHashToHex(inp.getPreviousTransactionHash()),
     prev_index: inp.getPreviousTransactionIndex(),
     script_sig: inp.getSignatureScript(),
@@ -176,7 +175,7 @@ export const conToTrezCoinParams = (coin) => {
   }
 }
 
-export const payVSPFee = async (wsvc, decodeSvc, votingSvc, host, txHex, votingKey, accountNum, coin, signFn, sendFn, log) => {
+export const payVSPFee = async (wsvc, decodeSvc, votingSvc, host, txHex, parentTxHex, votingKey, accountNum, coin, signFn, sendFn, log) => {
   // Gather information about the ticket.
   const net = conToTrezCoinParams(coin)
   const decodedTicket = await wallet.decodeTransaction(
@@ -189,7 +188,8 @@ export const payVSPFee = async (wsvc, decodeSvc, votingSvc, host, txHex, votingK
   let req = {
     timestamp: +new Date(),
     tickethash: txHash,
-    tickethex: txHex
+    tickethex: txHex,
+    parenthex: parentTxHex
   }
   let jsonStr = JSON.stringify(req)
   log('Signing message to request fee from vsp at ' + host)
