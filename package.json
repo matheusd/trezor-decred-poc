@@ -12,12 +12,12 @@
     "babel-cli": "^6.26.0",
     "babel-preset-env": "^1.7.0",
     "blessed": "^0.1.81",
-    "connect": "https://github.com/JoeGruffins/npm-extended-dcr#dc8849b2cccf1525839f659e881c708a3cfce963",
     "google-protobuf": "^3.5.0",
     "grpc": "^1.13.0-pre1",
     "grpc-tools": "^1.6.6",
     "sprintf-js": "^1.1.1",
-    "utxo-lib": "https://github.com/JoeGruffins/trezor-utxo-lib#0e6287c2155f9ce5ec63341681a5c94a17832be6"
+    "trezor-connect": "8.2.4-extended",
+    "utxo-lib": "https://github.com/JoeGruffins/trezor-utxo-lib#5e6dbfc3764bd8f31da4140f897d792d76dcdd90"
   },
   "devDependencies": {
     "eslint": "^7.14.0",

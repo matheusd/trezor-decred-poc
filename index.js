@@ -21,8 +21,8 @@ try {
 import { default as cfg } from "./config.js";
 
 // app constants
-const session = require('connect').default
-const { TRANSPORT_EVENT, UI, UI_EVENT, DEVICE_EVENT } = require('connect')
+const session = require('trezor-connect').default
+const { TRANSPORT_EVENT, UI, UI_EVENT, DEVICE_EVENT } = require('trezor-connect')
 const CHANGE = 'device-changed'
 const DISCONNECT = 'device-disconnect'
 const CONNECT = 'device-connect'
@@ -70,12 +70,12 @@ const sendToAddress = async (destAddress, destAmount) => {
   if (noDevice()) return
 
   if (!destAddress) {
-    const destAddress = await ui.queryInput('Destination Address', 'Tsm5vzkspGWW8zAVRy5FCEF2FKkrnMqgZuJ')
+    destAddress = await ui.queryInput('Destination Address', 'Tsm5vzkspGWW8zAVRy5FCEF2FKkrnMqgZuJ')
     if (!destAddress) return
   }
 
   if (!destAmount) {
-    const destAmount = await ui.queryInput('Amount (in DCR)')
+    destAmount = await ui.queryInput('Amount (in DCR)')
     if (!destAmount) return
   }
 
@@ -124,10 +124,10 @@ const signTransaction = async (tx, changeIndexes) => {
           s = s.slice(0, 2)
           switch (s) {
             case 'bc':
-              input.script_type = 'SPENDSSRTX'
+              input.decred_staking_spend = "SSRTX";
               break
             case 'bb':
-              input.script_type = 'SPENDSSGEN'
+              input.decred_staking_spend = "SSGen";
               break
           }
         }
@@ -428,12 +428,12 @@ const uiActions = {
     try {
       // Disabled on mainnet.
       if (coin !== 'Decred Testnet') throw Error('can only be used on testnet')
+      const net = trezorHelpers.conToTrezCoinParams(coin)
       // TODO: Fill this with deterministic crypto magic.
       const privateKeySeed = Buffer.alloc(32)
       privateKeySeed[31] = 1
-      const net = trezorHelpers.conToTrezCoinParams(coin)
-      const ecp = ECPair.fromPrivateKeyBuffer(privateKeySeed, net)
-      const votingKey = ecp.toWIF()
+      const ecp = ECPair.fromPrivateKeyBuffer(privateKeySeed, net);
+      const votingKey = ecp.toWIF();
       const votingAddr = ecp.getAddress()
       // TODO: Add cspp purchasing.
       // TODO: Add multiple ticket purchasing.
@@ -466,14 +466,15 @@ const uiActions = {
         const commitAddr = decodedTicket.getOutputsList()[1].array[7][0]
         addrValidResp = await wallet.validateAddress(wsvc, commitAddr)
         const commitAddr_n = trezorHelpers.addressPath(addrValidResp.getIndex(), 1)
+        const inputAmt = decodedTicket.getInputsList()[0].array[4].toString()
         const ticketInput = {
           address_n: inAddr_n,
           prev_hash: Buffer.from(Array.from(decodedTicket.getInputsList()[0].array[0].values())).reverse().toString('hex'),
           prev_index: ticketOutN,
-          amount: decodedTicket.getInputsList()[0].array[4].toString()
+          amount: inputAmt
         }
         const sstxsubmission = {
-          script_type: 'SSTXSUBMISSIONPKH',
+          script_type: 'PAYTOADDRESS',
           address: votingAddr,
           amount: decodedTicket.getOutputsList()[0].array[0].toString()
         }
@@ -481,13 +482,12 @@ const uiActions = {
         const opScript = Array.from(decodedTicket.getOutputsList()[1].array[3].values())
         const ticketOPreturn = Buffer.from(opScript.slice(2)).toString('hex')
         const ticketsstxcommitment = {
-          script_type: 'SSTXCOMMITMENTOWNED',
-          op_return_data: ticketOPreturn,
+          script_type: 'PAYTOADDRESS',
           address_n: commitAddr_n,
-          amount: '0'
+          amount: inputAmt
         }
         const ticketsstxchange = {
-          script_type: 'SSTXCHANGE',
+          script_type: 'PAYTOADDRESS',
           address: decodedTicket.getOutputsList()[2].array[7][0],
           amount: '0'
         }
@@ -498,7 +498,8 @@ const uiActions = {
           coin: coin,
           inputs: inputs,
           outputs: outputs,
-          refTxs: refTxs
+          refTxs: refTxs,
+          decredStakingTicket: true,
         })
         const signedRaw = res.payload.serializedTx
         log(JSON.stringify(res.payload, null, 2))
@@ -507,7 +508,7 @@ const uiActions = {
         log('Waiting 5 seconds for the ticket to propogate throughout the network.')
         await new Promise(r => setTimeout(r, 5000))
         const host = 'https://' + cfg.vsp.host
-        await trezorHelpers.payVSPFee(wsvc, decodeSvc, votingSvc, host, signedRaw, votingKey, 0, coin, signMessage, signTransaction, log)
+        await trezorHelpers.payVSPFee(wsvc, decodeSvc, votingSvc, host, signedRaw, rawToHex(splitTx), votingKey, 0, coin, signMessage, signTransaction, log)
         i++
       }
     } catch (error) {
